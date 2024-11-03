@@ -6,6 +6,9 @@ sig Tr {
     irreflexive[nxt]
     antisymmetric[nxt]
     injective[nxt, Op]
+    some nxt[St]
+    no ~nxt[St]
+    // some nxt[Co + Ab]
 }
 
 abstract sig Op {
