@@ -1,5 +1,11 @@
+open util/relation
+
 sig Tr {
     nxt: Op -> Op
+} {
+    irreflexive[nxt]
+    antisymmetric[nxt]
+    injective[nxt, Op]
 }
 
 abstract sig Op {
