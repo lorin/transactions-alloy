@@ -72,19 +72,18 @@ sig Rd extends RW {
 }
 sig Wr extends RW {}
 
-fact WritesSeePreviousReadinTransaction {
-    all r : Rd | 
-    let next = r.tr.nxt, prev = ~next |
-        (some w : (^prev).r & Wr | {
-            r.obj=w.obj
-            no ww : w.^next & (^prev).r | r.obj=ww.obj
-        })
+fact "write sees previous read in transaction" {
+    all r : Rd | let w = r.sees  |
+        // same transaction means there can't be an intervening write to the same object
+        (r.tr = w.tr) => let t=r.tr, n=t.nxt, p=~n 
+            | no w : w.n & r.^p | w.obj = r.obj
 }
+
 
 assert AbortsAreNotVisible {
     no Abort.tr & ran[vis]
 }
 
-run {some Op; some Wr; some Rd; some vis} for 10 but 1 Obj, 1 Val
+run {some Op; some Wr; some Rd; some vis} for 11 but 1 Obj, 1 Val
 
-/* check AbortsAreNotVisible for 4 but 1 Obj, 1 Val */
+// check AbortsAreNotVisible for 4 but 1 Obj, 1 Val 
