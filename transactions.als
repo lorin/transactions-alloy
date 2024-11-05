@@ -23,10 +23,6 @@ abstract sig Tr {
 
     // all ops are reachable from start
     ops in (Start & ops).*nxt
-
-    // ends with commit or abort operation
-    one nxt.(Commit + Abort)
-    no (Commit + Abort).nxt
 }
 
 sig CTr extends Tr {} {
@@ -52,7 +48,6 @@ sig ATr extends Tr {} {
 one sig T0 extends CTr {
 } {
     ops in Start+Wr+Commit
-    some nxt.Commit
     no vis
 
     // every object has a write of V0
@@ -101,14 +96,17 @@ fact "all committed writes install a value" {
             all w : Wr & t.ops | w.obj.ver.tr = t
 }
 
+fact "versions are installed sequentially" {
+    all o : Obj, v1 : o.ver |
+        (v1.v != ordering/first) => some v2 : o.ver | ordering/lt[v2.v, v1.v]
+}
+
 
 sig Val {}
 
 one sig V0 extends Val {}
 
-sig Version {
-
-}
+sig Version {}
 
 abstract sig RW extends Op {
     obj: Obj,
@@ -126,6 +124,7 @@ fact "write sees previous read in transaction" {
         (r.tr = w.tr) => let t=r.tr, n=t.nxt, p=~n 
             | no w : w.n & r.^p | w.obj = r.obj
 }
+
 
 /* Write dependencies between transactions */
 fun ww[] : Tr -> Tr {
