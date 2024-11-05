@@ -2,10 +2,9 @@ open util/relation
 
 sig Tr {
     nxt: Op -> Op,
-    ops: set Op,
+    ops: disj set Op,
     vis: set Tr
 } {
-
     // nxt is made up of ops
     nxt in ops -> ops
 
@@ -18,15 +17,15 @@ sig Tr {
     antisymmetric[nxt]
 
     // starts with start operation
-    some nxt[Start]
+    one Start.nxt
     no nxt.Start
-
-    // ends with commit or abort operation
-    some nxt.(Commit + Abort)
-    no nxt[Commit + Abort]
 
     // all ops are reachable from start
     ops in (Start & ops).*nxt
+
+    // ends with commit or abort operation
+    one nxt.(Commit + Abort)
+    no (Commit + Abort).nxt
 }
 
 one sig T0 extends Tr {
@@ -86,6 +85,6 @@ assert AbortsAreNotVisible {
     no Abort.tr & ran[vis]
 }
 
-run {some Op; some Wr; some Rd; some vis} for 4 but 1 Obj, 1 Val
+run {some Op; some Wr; some Rd; some vis} for 10 but 1 Obj, 1 Val
 
 /* check AbortsAreNotVisible for 4 but 1 Obj, 1 Val */
