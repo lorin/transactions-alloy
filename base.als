@@ -5,7 +5,6 @@ Atul Adya, Barbara Liskov, Patrick O'Neil.
 Proceedings of the IEEE International Conference on Data Engineering, March 2000.
 
 */
-
 open util/ordering[Version]
 
 sig Tr {}
@@ -66,11 +65,11 @@ we define PL-1 as the level in which
 G0 is disallowed
 */
 
-assert PL_1 {
+assert PL1 {
     not G0
 }
 
-check PL_1 for 3 but exactly 3 Tr, exactly 2 Obj, exactly 1 Val
+check PL1 
 
 /*
 run {
