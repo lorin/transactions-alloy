@@ -12,6 +12,16 @@ sig Tr {}
 
 sig Obj {
     vers : set VersionedValue
+} {
+    // each version val is associated with a unique transaction
+    no disj vv1, vv2 : vers | {
+        vv1.tr = vv2.tr
+    }
+
+    // only one of each version
+    no disj vv1, vv2 : vers | {
+        vv1.v = vv2.v 
+    }
 }
 
 sig VersionedValue {
@@ -19,6 +29,8 @@ sig VersionedValue {
     val : Val,
     tr : Tr
 }
+
+// all versioned values
 
 sig Val {}
 
@@ -46,7 +58,7 @@ G0 if DSG(H) contains a directed cycle consisting
 entirely of write-dependency edges.
 */
 pred G0 {
-    some iden & ww[]
+    some iden & ^ww[]
 }
 
 /*
@@ -58,4 +70,12 @@ assert PL_1 {
     not G0
 }
 
-check PL_1
+check PL_1 for 3 but exactly 3 Tr, exactly 2 Obj, exactly 1 Val
+
+/*
+run {
+    all t : Tr | some tr.t
+    all obj : Obj | #obj.vers > 1
+
+} for 3 but exactly 3 Tr, exactly 2 Obj, exactly 3 Version
+*/
