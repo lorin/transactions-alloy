@@ -34,6 +34,10 @@ sig CTr extends Tr {} {
     no Abort & ops
 }
 
+sig WTr in CTr {} {
+    some Wr & ops
+}
+
 sig ATr extends Tr {} {
     // ends with abort operation
     one nxt.Abort
@@ -90,11 +94,17 @@ sig VersionedValue {
     tr : Tr
 }
 
-fact "all committed writes install a value" {
-    all t : Tr |
-        (some t.ops & Commit) => 
-            all w : Wr & t.ops | w.obj.ver.tr = t
+fact "all verisioned values are associated with at least one object" {
+    all vv : VersionedValue | some ver.vv
 }
+
+/**
+ * Somehow, this fact prevents the installation of values
+ *
+fact "all committed writes install a value" {
+    all t : CTr,  w : Wr & t.ops | w.obj.ver.tr = t
+}
+ */
 
 fact "versions are installed sequentially" {
     all o : Obj, v1 : o.ver |
@@ -118,7 +128,7 @@ sig Rd extends RW {
 }
 sig Wr extends RW {}
 
-fact "write sees previous read in transaction" {
+fact "read sees previous write in transaction" {
     all r : Rd | let w = r.sees  |
         // same transaction means there can't be an intervening write to the same object
         (r.tr = w.tr) => let t=r.tr, n=t.nxt, p=~n 
@@ -126,9 +136,21 @@ fact "write sees previous read in transaction" {
 }
 
 
-/* Write dependencies between transactions */
+/* Write dependencies between transactions
+
+From Adya et al.:
+
+Definition 6 : Directly Write-Depends. A transaction Tj
+directly write-depends on Ti if Ti installs a version xi and
+Tj installs x’s next version (after xi ) in the version order
+
+ */
 fun ww[] : Tr -> Tr {
-    Tr -> Tr
+    {x: Tr, y: Tr | some o : Obj, v1 : o.ver | v1.tr = x and some v2 : o.ver | v2.tr = y and next[v1.v] = v2.v } - iden
+}
+
+assert NeverMoreThanOneVersion {
+    all o : obj | one o.ver
 }
 
 
@@ -136,6 +158,14 @@ assert AbortsAreNotVisible {
     no Abort.tr & ran[vis]
 }
 
-run {some Op; some Wr; some Rd; some vis} for 11 but 1 Obj, 1 Val
+assert NoWriteDeps {
+    no ww[]
+}
+
+// run {some Op; some Wr; some Rd; some CTr - T0} for 11 but 1 Obj, 1 Val
 
 // check AbortsAreNotVisible for 4 but 1 Obj, 1 Val 
+
+//check NeverMoreThanOneVersion
+
+run {some WTr - T0; some Obj.ver /*some Obj.ver.tr - T0 */ } for 8 but 1 Obj, 1 Val
