@@ -65,7 +65,7 @@ sig VersionedValue {
     v : Version,
     val : Val,
     tr : TrC
-}
+} 
 
 fact VersionOrderRespectsbeforeibility {
     all obj : Obj |
@@ -80,7 +80,7 @@ fact VersionOrderRespectsbeforeibility {
 }
 
 /*
-If there are two transactions that are not beforeible to each other,
+If there are two transactions where neither precedes the other,
 they both cannot write to the same obj
 */
 fact NoConcurrentWrites {
