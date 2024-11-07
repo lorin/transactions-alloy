@@ -12,6 +12,55 @@ https://pmg.csail.mit.edu/papers/icde00.pdf
 open util/ordering[Version] as vo
 open util/ordering[Op] as oo
 
+/*
+G0: Write Cycles. A history H exhibits phenomenon
+G0 if DSG(H) contains a directed cycle consisting
+entirely of write-dependency edges.
+*/
+pred G0 {
+    some iden & ^ww[]
+}
+
+/*
+we define PL-1 as the level in which
+G0 is disallowed
+*/
+
+assert PL1 {
+    not G0
+}
+
+/*
+G1a: Aborted Reads
+
+A history H shows phenomenon G1a if it contains an aborted transaction T1 and a
+committed transaction T2 such that T2 has read some object modified by T1
+
+*/
+pred G1a {
+    some T1 : TrA, T2 : TrC, r : T2.ops & Rd, w : T1.ops & Wr | r.sees = w
+}
+
+/* 
+G1b: Intermediate Reads. A history H shows phenomenon G1b if it contains a committed transaction
+T2 that has read a version of object x written by transaction T1 that was not T1’s
+final modification of x.
+*/
+pred G1b {
+    some disj T1, T2 : TrC, r : T2.ops & Rd | let x = r.obj, wi=r.sees | 
+    {
+        wi.tr = T1
+        some wj : (T1.ops - wi) & Wr | {
+            wj.obj = x
+            gt[wj, wi]
+        }
+    }
+}
+
+assert PL2 {
+    // not G1a
+    not G1b
+}
 
 abstract sig Tr {
     ops : set Op
@@ -28,9 +77,10 @@ abstract sig Op {
     tr: Tr,
     obj: Obj,
     val: Val,
-    tn: lone Op
+    tn: lone Op // transaction-next (next op in transaction)
 } {
-    this in tr.ops
+    this in tr.ops // this op is in the operations of the transactions it is associated with
+    one ~ops[this] // this op is associated with exactly one transaction
 }
 
 fact TransactionNext {
@@ -76,7 +126,6 @@ sig Val {}
 sig Version {}
 
 /*
-
 Definition 6 : Directly Write-Depends. A transaction Tj
 directly write-depends on Ti if Ti installs a version xi and
 Tj installs x’s next version (after xi ) in the version order
@@ -91,60 +140,11 @@ fun ww[] : Tr -> Tr {
         next[vv1.v] = vv2.v }}
 }
 
-/*
-G0: Write Cycles. A history H exhibits phenomenon
-G0 if DSG(H) contains a directed cycle consisting
-entirely of write-dependency edges.
-*/
-pred G0 {
-    some iden & ^ww[]
-}
 
-/*
-we define PL-1 as the level in which
-G0 is disallowed
-*/
+// check PL1 
+check PL2 
 
-assert PL1 {
-    not G0
-}
-
-/*
-G1a: Aborted Reads
-
-A history H shows phenomenon G1a if it contains an aborted transaction T1 and a
-committed transaction T2 such that T2 has read some object modified by T1
-
-*/
-pred G1a {
-    some T1 : TrA, T2 : TrC, r : T2.ops & Rd, w : T1.ops & Wr | r.sees = w
-}
-
-/* 
-G1b: Intermediate Reads. A history H shows phenomenon G1b if it contains a committed transaction
-T2 that has read a version of object x  written by transaction T1 that was not T1’s
-final modification of x.
-*/
-pred G1b {
-    some disj T1, T2 : TrC, r : T2.ops & Rd | let x = r.obj, wi=r.sees | 
-    {
-        wi.tr = T1
-        some wj : (T1.ops - wi) & Wr | {
-            wj.obj = x
-            gt[wj, wi]
-        }
-    }
-}
-
-assert PL2 {
-    // not G1a
-    not G1b
-}
-
-//check PL1 
-// check PL2 
-
-run {} for 3 but exactly 2 Tr, exactly 5 Op
+// run {} for 3 but exactly 2 Tr, exactly 5 Op
 
 
 /*
