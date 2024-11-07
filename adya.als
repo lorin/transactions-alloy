@@ -1,7 +1,7 @@
 /*
 
 Source: Generalized Isolation Level Definitions,
-Atul Adya, Barbara Liskov, Patrick O'Neil. 
+Atul Adya, Barbara Liskov, Patrick O'Neil.
 Proceedings of the IEEE International Conference on Data Engineering, March 2000.
 
 https://pmg.csail.mit.edu/papers/icde00.pdf
@@ -36,13 +36,13 @@ pred G1a {
     some T1 : TrA, T2 : TrC, r : T2.ops & Rd, w : T1.ops & Wr | r.sees = w
 }
 
-/* 
+/*
 G1b: Intermediate Reads. A history H shows phenomenon G1b if it contains a committed transaction
 T2 that has read a version of object x written by transaction T1 that was not T1’s
 final modification of x.
 */
 pred G1b {
-    some disj T1, T2 : TrC, r : T2.ops & Rd | let x = r.obj, wi=r.sees | 
+    some disj T1, T2 : TrC, r : T2.ops & Rd | let x = r.obj, wi=r.sees |
     {
         wi.tr = T1
         some wj : (T1.ops - wi) & Wr | {
@@ -54,7 +54,7 @@ pred G1b {
 
 
 /*
-G1c: Circular Information Flow. 
+G1c: Circular Information Flow.
 
 A history H exhibits phenomenon G1c if DSG(H) contains a directed cycle
 consisting entirely of dependency edges
@@ -96,6 +96,69 @@ assert PL3 {
     not G2item
 }
 
+
+/*
+Definition 3: Directly Read-Depends.
+
+We say that Tj directly read-depends on transaction Ti if it directly
+itemread-depends or directly predicate-read-depends on T i
+
+Directly item-read-depends:
+
+We say that Tj directly itemread-depends on Ti if Ti installs some object version
+xi and Tj reads xi
+*/
+fun wr[] : TrC -> TrC {
+    { Ti: TrC, Tj: TrC  | some o : Obj, vv : o.vers, rd : Rd & Tj.ops | {
+        vv.tr = Ti
+        rd.obj = o
+        rd.sees.tr = Ti
+    }} - iden
+}
+
+
+/*
+Definition 5 : Directly Anti-Depends.
+
+Transaction Tj directly anti-depends on transaction Ti if it directly
+item-anti-depends or directly predicate-anti-depends on T i
+
+Directly item-anti-depends: We say that Tj directly item-anti-depends on
+transaction Ti if Ti reads some object version xk and Tj installs x’s next
+version (after xk ) in the version order. Note that the transaction that wrote
+the later version directly item-anti-depends on the transaction that read the
+earlier version
+*/
+fun rw[] : TrC -> TrC {
+    {Ti: TrC, Tj: TrC | some rd : Rd & Ti.ops, xk : rd.obj.vers | nextv[xk].tr = Tj }
+}
+
+/*
+Definition 6 : Directly Write-Depends.
+
+A transaction Tj
+directly write-depends on Ti if Ti installs a version xi and
+Tj installs x’s next version (after xi ) in the version order
+
+Ti -> Tj
+
+*/
+fun ww[] : TrC -> TrC {
+    { Ti: TrC, Tj: TrC  | some obj : Obj, vv1,vv2 : obj.vers | {
+        vv1.tr = Ti
+        vv2.tr = Tj
+        next[vv1.v] = vv2.v }} - iden
+}
+
+
+fun nextv[vv : VersionedValue] : VersionedValue {
+    { w : VersionedValue | {
+        vv.obj = w.obj
+        w.v = next[vv.v] }}
+}
+
+
+
 abstract sig Tr {
     ops : set Op
 }
@@ -119,8 +182,8 @@ abstract sig Op {
 
 fact TransactionNext {
     tn = { disj o1, o2 : Op | {
-            o1.tr = o2.tr 
-            o1->o2 in ^oo/next 
+            o1.tr = o2.tr
+            o1->o2 in ^oo/next
             no o3 : Op | o1->o3 in ^oo/next and o3->o2 in ^oo/next
         } }
 }
@@ -147,7 +210,7 @@ sig Obj {
 
     // only one of each version
     no disj vv1, vv2 : vers | {
-        vv1.v = vv2.v 
+        vv1.v = vv2.v
     }
 }
 
@@ -156,73 +219,22 @@ sig VersionedValue {
     v : Version,
     val : Val,
     tr : TrC
-} 
+} {
+    this in obj.vers
+
+    // For every installed VersionedValue, there must be an associated write in the transaction
+    some wr : Wr & tr.ops | {
+        wr.@obj = obj
+        wr.@val = val
+    }
+}
 
 sig Val {}
 
 sig Version {}
 
-/*
-Definition 6 : Directly Write-Depends. 
 
-A transaction Tj
-directly write-depends on Ti if Ti installs a version xi and
-Tj installs x’s next version (after xi ) in the version order
-
-Ti -> Tj
-
-*/
-fun ww[] : TrC -> TrC {
-    { Ti: TrC, Tj: TrC  | some obj : Obj, vv1,vv2 : obj.vers | {
-        vv1.tr = Ti
-        vv2.tr = Tj
-        next[vv1.v] = vv2.v }}
-}
-
-/*
-Direction 3: Directly Read-Depends.
-
-We say that Tj directly read-depends on transaction Ti if it directly
-itemread-depends or directly predicate-read-depends on T i 
-
-Directly item-read-depends: 
-
-We say that Tj directly itemread-depends on Ti if Ti installs some object version
-xi and Tj reads xi 
-*/
-fun wr[] : TrC -> TrC {
-    { Ti: TrC, Tj: TrC  | some o : Obj, vv : o.vers, rd : Rd & Tj.ops | {
-        vv.tr = Ti
-        rd.obj = o
-        rd.sees.tr = Ti
-    }} - iden
-}
-
-fun nextv[vv : VersionedValue] : VersionedValue {
-    { w : VersionedValue | {
-        vv.obj = w.obj
-        w.v = next[vv.v] }}
-}
-
-
-/*
-Definition 5 : Directly Anti-Depends. 
-
-Transaction Tj directly anti-depends on transaction Ti if it directly
-item-anti-depends or directly predicate-anti-depends on T i
-
-Directly item-anti-depends: We say that Tj directly item-anti-depends on
-transaction Ti if Ti reads some object version xk and Tj installs x’s next
-version (after xk ) in the version order. Note that the transaction that wrote
-the later version directly item-anti-depends on the transaction that read the
-earlier version
-*/
-fun rw[] : TrC -> TrC {
-    {Ti: TrC, Tj: TrC | some rd : Rd & Ti.ops, xk : rd.obj.vers | nextv[xk].tr = Tj } 
-}
-
-
-// check PL1 
+// check PL1
 // check PL2 for 3 but exactly 1 Obj
 
 check PL3
