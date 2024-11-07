@@ -12,6 +12,10 @@ https://pmg.csail.mit.edu/papers/icde00.pdf
 open util/ordering[Version] as vo
 open util/ordering[Op] as oo
 
+fun vn[] : Version -> Version {
+    vo/next
+}
+
 /*
 G0: Write Cycles. A history H exhibits phenomenon
 G0 if DSG(H) contains a directed cycle consisting
@@ -19,15 +23,6 @@ entirely of write-dependency edges.
 */
 pred G0 {
     some iden & ^ww[]
-}
-
-/*
-we define PL-1 as the level in which
-G0 is disallowed
-*/
-
-assert PL1 {
-    not G0
 }
 
 /*
@@ -57,9 +52,48 @@ pred G1b {
     }
 }
 
+
+/*
+G1c: Circular Information Flow. 
+
+A history H exhibits phenomenon G1c if DSG(H) contains a directed cycle
+consisting entirely of dependency edges
+*/
+pred G1c {
+    some iden & ^(ww + wr)
+}
+
+/*
+G2-item: Item Anti-dependency Cycles. A history H exhibits phenomenon G2-item if
+DSG(H) contains a directed cycle having one or more item-antidependency edges.
+*/
+
+fun DSG[] : TrC -> TrC {
+    ww + wr + rw
+}
+
+pred G2item {
+    some iden & ^DSG
+    not G1c
+}
+
+/*
+we define PL-1 as the level in which
+G0 is disallowed
+*/
+assert PL1 {
+    not G0
+}
+
+
 assert PL2 {
-    // not G1a
+    not G1a
     not G1b
+    not G1c
+}
+
+assert PL3 {
+    not G2item
 }
 
 abstract sig Tr {
@@ -104,6 +138,8 @@ sig Rd extends Op {
 sig Obj {
     vers : set VersionedValue
 } {
+    this in vers.obj
+
     // each version val is associated with a unique transaction
     no disj vv1, vv2 : vers | {
         vv1.tr = vv2.tr
@@ -116,6 +152,7 @@ sig Obj {
 }
 
 sig VersionedValue {
+    obj: Obj,
     v : Version,
     val : Val,
     tr : TrC
@@ -126,23 +163,70 @@ sig Val {}
 sig Version {}
 
 /*
-Definition 6 : Directly Write-Depends. A transaction Tj
+Definition 6 : Directly Write-Depends. 
+
+A transaction Tj
 directly write-depends on Ti if Ti installs a version xi and
 Tj installs x’s next version (after xi ) in the version order
 
 Ti -> Tj
 
 */
-fun ww[] : Tr -> Tr {
-    { Ti: Tr, Tj: Tr  | some obj : Obj, vv1,vv2 : obj.vers | {
+fun ww[] : TrC -> TrC {
+    { Ti: TrC, Tj: TrC  | some obj : Obj, vv1,vv2 : obj.vers | {
         vv1.tr = Ti
         vv2.tr = Tj
         next[vv1.v] = vv2.v }}
 }
 
+/*
+Direction 3: Directly Read-Depends.
+
+We say that Tj directly read-depends on transaction Ti if it directly
+itemread-depends or directly predicate-read-depends on T i 
+
+Directly item-read-depends: 
+
+We say that Tj directly itemread-depends on Ti if Ti installs some object version
+xi and Tj reads xi 
+*/
+fun wr[] : TrC -> TrC {
+    { Ti: TrC, Tj: TrC  | some o : Obj, vv : o.vers, rd : Rd & Tj.ops | {
+        vv.tr = Ti
+        rd.obj = o
+        rd.sees.tr = Ti
+    }} - iden
+}
+
+fun nextv[vv : VersionedValue] : VersionedValue {
+    { w : VersionedValue | {
+        vv.obj = w.obj
+        w.v = next[vv.v] }}
+}
+
+
+/*
+Definition 5 : Directly Anti-Depends. 
+
+Transaction Tj directly anti-depends on transaction Ti if it directly
+item-anti-depends or directly predicate-anti-depends on T i
+
+Directly item-anti-depends: We say that Tj directly item-anti-depends on
+transaction Ti if Ti reads some object version xk and Tj installs x’s next
+version (after xk ) in the version order. Note that the transaction that wrote
+the later version directly item-anti-depends on the transaction that read the
+earlier version
+*/
+fun rw[] : TrC -> TrC {
+    {Ti: TrC, Tj: TrC | some rd : Rd & Ti.ops, xk : rd.obj.vers | nextv[xk].tr = Tj } 
+}
+
 
 // check PL1 
-check PL2 
+// check PL2 for 3 but exactly 1 Obj
+
+check PL3
+
 
 // run {} for 3 but exactly 2 Tr, exactly 5 Op
 
