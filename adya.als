@@ -12,10 +12,6 @@ https://pmg.csail.mit.edu/papers/icde00.pdf
 open util/ordering[Version] as vo
 open util/ordering[Op] as oo
 
-// transaction next
-fun tn[]: Op -> Op {
-    {o1, o2 : Op | o1.tr = o2.tr } & oo/next
-}
 
 abstract sig Tr {
     ops : set Op
@@ -31,9 +27,18 @@ sig TrA extends Tr {}
 abstract sig Op {
     tr: Tr,
     obj: Obj,
-    val: Val
+    val: Val,
+    tn: lone Op
 } {
     this in tr.ops
+}
+
+fact TransactionNext {
+    tn = { disj o1, o2 : Op | {
+            o1.tr = o2.tr 
+            o1->o2 in ^oo/next 
+            no o3 : Op | o1->o3 in ^oo/next and o3->o2 in ^oo/next
+        } }
 }
 
 sig Wr extends Op {}
@@ -139,7 +144,7 @@ assert PL2 {
 //check PL1 
 // check PL2 
 
-run {}
+run {} for 3 but exactly 2 Tr, exactly 5 Op
 
 
 /*
