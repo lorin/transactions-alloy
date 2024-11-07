@@ -13,10 +13,7 @@ open util/ordering[Version] as vo
 open util/ordering[Op] as oo
 
 abstract sig Tr {
-    // which transactions happened before this one
-    precedes: set Tr,
     ops : set Op
-
 }
 
 // committed transactions
@@ -25,9 +22,6 @@ sig TrC extends Tr {}
 // aborted transactions
 sig TrA extends Tr {}
 
-fact beforeIsAcyclic{
-    no ^precedes & iden
-}
 
 abstract sig Op {
     tr: Tr,
@@ -66,33 +60,6 @@ sig VersionedValue {
     val : Val,
     tr : TrC
 } 
-
-fact VersionOrderRespectsbeforeibility {
-    all obj : Obj |
-        // It cannot be the case that:
-        no disj vvi, vvj : obj.vers {
-            // j is beforeible to i, meaning j precedes i
-            vvj.tr in vvi.tr.precedes 
-
-            // i's version is less than j's version, meaning i was written before j
-            lt[vvi.v, vvj.v]
-        }
-}
-
-/*
-If there are two transactions where neither precedes the other,
-they both cannot write to the same obj
-*/
-fact NoConcurrentWrites {
-    no obj : Obj | some disj Ti, Tj : Tr | {
-        Ti not in Tj.precedes
-        Tj not in Ti.precedes
-        some disj vv1, vv2 : obj.vers |  {
-            vv1.tr = Ti
-            vv2.tr = Tj
-        }
-    }
-}
 
 sig Val {}
 
