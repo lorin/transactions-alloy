@@ -1,16 +1,21 @@
 /*
 
-Implements PL1.
-
-Assumes all transactions commit, because write PL1 does not involve aborts.
-
 Source: Generalized Isolation Level Definitions,
 Atul Adya, Barbara Liskov, Patrick O'Neil. 
 Proceedings of the IEEE International Conference on Data Engineering, March 2000.
 
+https://pmg.csail.mit.edu/papers/icde00.pdf
+
 */
+
+
 open util/ordering[Version] as vo
 open util/ordering[Op] as oo
+
+// transaction next
+fun tn[]: Op -> Op {
+    {o1, o2 : Op | o1.tr = o2.tr } & oo/next
+}
 
 abstract sig Tr {
     ops : set Op
@@ -132,9 +137,10 @@ assert PL2 {
 }
 
 //check PL1 
-check PL2 
+// check PL2 
 
-// run {}
+run {}
+
 
 /*
 run {
