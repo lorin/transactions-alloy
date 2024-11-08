@@ -49,7 +49,32 @@ sig Rd extends RWOp {
     val = sees.@val
 }
 
-run {no PRead; some Rd} for 3 but exactly 10 Op
+run {no PRead; some Rd} for 3 but exactly 10 Op, exactly 2 Obj, exactly 3 Val
+
+
+//  Predicate read
+sig PRead extends Op {
+    vset: some VersionedValue,
+    objs : set Obj,
+    P: Predicate,
+} {
+    // sees a write for every object
+    Obj in vset.w.obj
+
+    // vset contains a version of every object
+    Obj in vset.obj
+
+    // matching set of objects consistent with predicate evaluation
+    objs = P.eval[wr_env[vset.w]]
+
+    // predicates see only one write per object
+    no disj w1, w2 : vset.w | w1.obj = w2.obj
+}
+ 
+
+sig Predicate {
+    eval: Env -> set Obj
+}
 
 
 
@@ -194,7 +219,7 @@ pred changes_the_matches_of[xi : VersionedValue, pr : PRead] {
     // xi is the versioned value that corresponds to a write
     let xp = {xp : VersionedValue | xp.obj = xi.obj and xp.v = prev[xi.v]},
         wrs = (pr.vset.w - xi.w) + xp.w,
-        env_prev = wr_Env[wrs],
+        env_prev = wr_env[wrs],
         P = pr.P |
 
         pr.objs != P.eval[env_prev]
@@ -297,44 +322,6 @@ sig Env {
     Obj in mapping.Val
 }
 
-sig Predicate {
-    eval: Env -> set Obj
-}
-
-/**
- * Given a set of versioned values, create a relation
- * that maps objects to their written values
- */
-fun vset_Env[vs: set VersionedValue] : Env {
-    {e : Env |
-        all v : vs | e.mapping.(v.obj) = v.val }
-}
-
-/**
- * Predicate read
- */
-sig PRead extends Op {
-    vset: some VersionedValue,
-    objs : set Obj,
-    P: Predicate,
-} 
-{
-    // sees a write for every object
-    Obj in vset.w.obj
-
-    // vset contains a version of every object
-    Obj in vset.obj
-
-    // matching set of objects consistent with predicate evaluation
-    objs = P.eval[vset_Env[vset]]
-}
-
-// predicates see only one write per object
-fact {
-    all pr : PRead |
-        no disj w1, w2 : pr.vset.w | w1.obj=w2.obj
-}
-
 
 /**
  * Given a set of complete set of object writes, create a relation
@@ -345,10 +332,10 @@ fun env[wrs : set Wr] : Obj -> Val {
 }
 
 /**
- * Given a set of complete set of object writes, return the correspond Env
+ * Given a set of object writes, return the correspond Env
  * that maps objects to their written values
  */
-fun wr_Env[wrs : set Wr] : Env {
+fun wr_env[wrs : set Wr] : Env {
     {e : Env | all o : Obj | e.mapping[o] = written[o, wrs]}
 }
 
@@ -360,7 +347,11 @@ fact TransactionNext {
     tn = { disj o1, o2 : Op | {
             o1.tr = o2.tr
             o1->o2 in ^oo/next
-            no o3 : Op | o1->o3 in ^oo/next and o3->o2 in ^oo/next
+            no o3 : Op | {
+                o3.tr = o1.tr 
+                o1->o3 in ^oo/next 
+                o3->o2 in ^oo/next
+            }
         } }
 }
 
@@ -397,8 +388,10 @@ sig VersionedValue {
     w.@val = val
 }
 
+// values
 sig Val {}
 
+// versions
 sig Version {}
 
 
