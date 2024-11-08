@@ -11,6 +11,47 @@ https://pmg.csail.mit.edu/papers/icde00.pdf
 open util/ordering[Version] as vo
 open util/ordering[Op] as oo
 
+// transactions
+abstract sig Tr {
+    ops : set Op
+}
+
+// committed transactions
+sig TrC extends Tr {}
+
+// aborted transactions
+sig TrA extends Tr {}
+
+// Operations
+abstract sig Op {
+    tr: Tr,
+    tn: lone Op // transaction-next (next op in transaction)
+} {
+    this in tr.ops // this op is in the operations of the transactions it is associated with
+    one ~ops[this] // this op is associated with exactly one transaction
+}
+
+
+// read-write operations
+abstract sig RWOp extends Op {
+    obj: Obj,
+    val: Val
+}
+
+// writes
+sig Wr extends RWOp {}
+
+// reads
+sig Rd extends RWOp {
+    sees: Wr
+} {
+    obj = sees.@obj
+    val = sees.@val
+}
+
+run {no PRead; some Rd} for 3 but exactly 10 Op
+
+
 
 fun vn[] : Version -> Version {
     vo/next
@@ -152,7 +193,7 @@ fun iwr[] : TrC -> TrC {
 pred changes_the_matches_of[xi : VersionedValue, pr : PRead] {
     // xi is the versioned value that corresponds to a write
     let xp = {xp : VersionedValue | xp.obj = xi.obj and xp.v = prev[xi.v]},
-        wrs = (pr.sees - xi.w) + xp.w,
+        wrs = (pr.vset.w - xi.w) + xp.w,
         env_prev = wr_Env[wrs],
         P = pr.P |
 
@@ -249,33 +290,6 @@ fun ww[] : TrC -> TrC {
         next[vv1.v] = vv2.v }} - iden
 }
 
-
-abstract sig Tr {
-    ops : set Op
-}
-
-// committed transactions
-sig TrC extends Tr {}
-
-// aborted transactions
-sig TrA extends Tr {}
-
-
-
-abstract sig Op {
-    tr: Tr,
-    tn: lone Op // transaction-next (next op in transaction)
-} {
-    this in tr.ops // this op is in the operations of the transactions it is associated with
-    one ~ops[this] // this op is associated with exactly one transaction
-}
-
-// read-write operations
-abstract sig RWOp extends Op {
-    obj: Obj,
-    val: Val
-}
-
 sig Env {
     mapping : Obj -> one Val
 } {
@@ -296,15 +310,17 @@ fun vset_Env[vs: set VersionedValue] : Env {
         all v : vs | e.mapping.(v.obj) = v.val }
 }
 
-// predicate read
+/**
+ * Predicate read
+ */
 sig PRead extends Op {
-    P: Predicate,
-    sees: set Wr,
     vset: some VersionedValue,
-    objs : set Obj
-} {
+    objs : set Obj,
+    P: Predicate,
+} 
+{
     // sees a write for every object
-    Obj in sees.obj
+    Obj in vset.w.obj
 
     // vset contains a version of every object
     Obj in vset.obj
@@ -316,7 +332,7 @@ sig PRead extends Op {
 // predicates see only one write per object
 fact {
     all pr : PRead |
-        no disj w1, w2 : pr. sees | w1.obj=w2.obj
+        no disj w1, w2 : pr.vset.w | w1.obj=w2.obj
 }
 
 
@@ -348,16 +364,8 @@ fact TransactionNext {
         } }
 }
 
-sig Wr extends RWOp {}
 
-sig Rd extends RWOp {
-    sees: Wr
-} {
-    obj = sees.@obj
-    val = sees.@val
-}
-
-
+// Objects
 sig Obj {
     vers : set VersionedValue
 } {
