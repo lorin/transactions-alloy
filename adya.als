@@ -8,9 +8,9 @@ https://pmg.csail.mit.edu/papers/icde00.pdf
 
 */
 
-
 open util/ordering[Version] as vo
 open util/ordering[Op] as oo
+
 
 fun vn[] : Version -> Version {
     vo/next
@@ -116,6 +116,40 @@ fun wr[] : TrC -> TrC {
     }} - iden
 }
 
+pred changes_the_matches_of[xi : VersionedValue, pr : PRead] {
+    // xi is the versioned value that corresponds to a write
+    let xp = {xp : VersionedValue | xp.obj = xi.obj and xp.v = prev[xi.v]},
+        wrs = (pr.sees - xi.w) + xp.w,
+        env_prev = wr_Env[wrs],
+        P = pr.P |
+
+        pr.objs != P.eval[env_prev]
+}
+
+/*
+Directly predicate-read-depends: Transaction Tj directly
+predicate-read-depends on Ti if Tj performs an operation rj (P: Vset(P)),
+xk ∈ Vset(P), i = k or xi << xk, and xi changes the matches of rj (P: Vset(P)).
+*/
+fun pwr[] : TrC -> TrC {
+    {Ti : TrC, Tj: TrC | some rj : PRead & Tj.ops, xk : rj.vset |
+        some xi : xk.obj.vers | {
+            xi.tr = Ti
+            (xi = xk) or {
+                lt[xi.v, xk.v]
+                // xi changes the matches of rj (P: Vset(P))
+                changes_the_matches_of[xi, rj]
+            }
+        }
+    } - iden
+}
+
+assert NoPredicateWriteDeps {
+    no pwr
+}
+
+check NoPredicateWriteDeps
+
 
 /*
 Definition 5 : Directly Anti-Depends.
@@ -130,7 +164,17 @@ the later version directly item-anti-depends on the transaction that read the
 earlier version
 */
 fun rw[] : TrC -> TrC {
-    {Ti: TrC, Tj: TrC | some rd : Rd & Ti.ops, xk : rd.obj.vers | nextv[xk].tr = Tj }
+    {Ti: TrC, Tj: TrC | some rd : Rd & Ti.ops, xk : rd.obj.vers | {
+        rd.val = xk.val
+        nextv[xk].tr = Tj
+        no xk.val & nextv[xk].val // enforce different values being written
+    }} - iden
+}
+
+fun nextv[vv : VersionedValue] : lone VersionedValue {
+    { w : VersionedValue | {
+        vv.obj = w.obj
+        w.v = next[vv.v] }}
 }
 
 /*
@@ -147,16 +191,9 @@ fun ww[] : TrC -> TrC {
     { Ti: TrC, Tj: TrC  | some obj : Obj, vv1,vv2 : obj.vers | {
         vv1.tr = Ti
         vv2.tr = Tj
+        no vv1.val & vv2.val // enforce different values being written
         next[vv1.v] = vv2.v }} - iden
 }
-
-
-fun nextv[vv : VersionedValue] : VersionedValue {
-    { w : VersionedValue | {
-        vv.obj = w.obj
-        w.v = next[vv.v] }}
-}
-
 
 
 abstract sig Tr {
@@ -170,14 +207,83 @@ sig TrC extends Tr {}
 sig TrA extends Tr {}
 
 
+
 abstract sig Op {
     tr: Tr,
-    obj: Obj,
-    val: Val,
     tn: lone Op // transaction-next (next op in transaction)
 } {
     this in tr.ops // this op is in the operations of the transactions it is associated with
     one ~ops[this] // this op is associated with exactly one transaction
+}
+
+// read-write operations
+abstract sig RWOp extends Op {
+    obj: Obj,
+    val: Val
+}
+
+sig Env {
+    mapping : Obj -> one Val
+} {
+    // env contains every object
+    Obj in mapping.Val
+}
+
+sig Predicate {
+    eval: Env -> set Obj
+}
+
+/**
+ * Given a set of versioned values, create a relation
+ * that maps objects to their written values
+ */
+fun vset_Env[vs: set VersionedValue] : Env {
+    {e : Env |
+        all v : vs | e.mapping.(v.obj) = v.val }
+}
+
+// predicate read
+sig PRead extends Op {
+    P: Predicate,
+    sees: set Wr,
+    vset: some VersionedValue,
+    objs : set Obj
+} {
+    // sees a write for every object
+    Obj in sees.obj
+
+    // vset contains a version of every object
+    Obj in vset.obj
+
+    // matching set of objects consistent with predicate evaluation
+    objs = P.eval[vset_Env[vset]]
+}
+
+// predicates see only one write per object
+fact {
+    all pr : PRead |
+        no disj w1, w2 : pr. sees | w1.obj=w2.obj
+}
+
+
+/**
+ * Given a set of complete set of object writes, create a relation
+ * that maps objects to their written values
+ */
+fun env[wrs : set Wr] : Obj -> Val {
+    {o: Obj, v: Val | v = written[o, wrs]}
+}
+
+/**
+ * Given a set of complete set of object writes, return the correspond Env
+ * that maps objects to their written values
+ */
+fun wr_Env[wrs : set Wr] : Env {
+    {e : Env | all o : Obj | e.mapping[o] = written[o, wrs]}
+}
+
+fun written[o: Obj, wrs: set Wr] : Val {
+    {wr : wrs | wr.obj = o}.val
 }
 
 fact TransactionNext {
@@ -188,9 +294,9 @@ fact TransactionNext {
         } }
 }
 
-sig Wr extends Op {}
+sig Wr extends RWOp {}
 
-sig Rd extends Op {
+sig Rd extends RWOp {
     sees: Wr
 } {
     obj = sees.@obj
@@ -218,15 +324,15 @@ sig VersionedValue {
     obj: Obj,
     v : Version,
     val : Val,
-    tr : TrC
+    tr : TrC,
+    w : Wr
 } {
     this in obj.vers
 
     // For every installed VersionedValue, there must be an associated write in the transaction
-    some wr : Wr & tr.ops | {
-        wr.@obj = obj
-        wr.@val = val
-    }
+    w in tr.ops
+    w.@obj = obj
+    w.@val = val
 }
 
 sig Val {}
@@ -234,13 +340,15 @@ sig Val {}
 sig Version {}
 
 
+
+
 // check PL1
 // check PL2 for 3 but exactly 1 Obj
 
-check PL3
+// check PL3 for 4
 
 
-// run {} for 3 but exactly 2 Tr, exactly 5 Op
+run {some Predicate} for 3 but exactly 2 Tr, exactly 5 Op
 
 
 /*
