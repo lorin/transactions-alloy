@@ -101,14 +101,19 @@ assert PL3 {
 Definition 3: Directly Read-Depends.
 
 We say that Tj directly read-depends on transaction Ti if it directly
-itemread-depends or directly predicate-read-depends on T i
+item-read-depends or directly predicate-read-depends on Ti
+*/
+fun wr[] : TrC -> TrC {
+    iwr + pwr
+}
 
+/*
 Directly item-read-depends:
 
 We say that Tj directly itemread-depends on Ti if Ti installs some object version
 xi and Tj reads xi
 */
-fun wr[] : TrC -> TrC {
+fun iwr[] : TrC -> TrC {
     { Ti: TrC, Tj: TrC  | some o : Obj, vv : o.vers, rd : Rd & Tj.ops | {
         vv.tr = Ti
         rd.obj = o
