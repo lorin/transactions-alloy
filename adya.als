@@ -161,14 +161,19 @@ Definition 5 : Directly Anti-Depends.
 
 Transaction Tj directly anti-depends on transaction Ti if it directly
 item-anti-depends or directly predicate-anti-depends on T i
+*/
+fun rw[] : TrC->TrC {
+    irw + prw
+}
 
+/*
 Directly item-anti-depends: We say that Tj directly item-anti-depends on
 transaction Ti if Ti reads some object version xk and Tj installs x’s next
 version (after xk ) in the version order. Note that the transaction that wrote
 the later version directly item-anti-depends on the transaction that read the
 earlier version
 */
-fun rw[] : TrC -> TrC {
+fun irw[] : TrC -> TrC {
     {Ti: TrC, Tj: TrC | some rd : Rd & Ti.ops, xk : rd.obj.vers | {
         rd.val = xk.val
         nextv[xk].tr = Tj
@@ -180,6 +185,22 @@ fun nextv[vv : VersionedValue] : lone VersionedValue {
     { w : VersionedValue | {
         vv.obj = w.obj
         w.v = next[vv.v] }}
+}
+
+
+/*
+Directly predicate-anti-depends: We say that Tj directly
+predicate-anti-depends on Ti if Tj overwrites an operation ri (P: Vset(P)),
+ i.e., Tj installs a later version of some object that changes 
+ the matches of a predicate based read performed by Ti
+*/
+fun prw[] : TrC->TrC {
+    {Ti: TrC, Tj: TrC | 
+        some ri : PRead & Tj.ops, vv : VersionedValue {
+            vv.tr = Tj
+            changes_the_matches_of[vv, ri]
+        }
+    }
 }
 
 /*
