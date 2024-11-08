@@ -25,6 +25,10 @@ pred G0 {
     some iden & ^ww[]
 }
 
+pred G1 {
+    G1a or G1b or G1c
+}
+
 /*
 G1a: Aborted Reads
 
@@ -63,18 +67,35 @@ pred G1c {
     some iden & ^(ww + wr)
 }
 
-/*
-G2-item: Item Anti-dependency Cycles. A history H exhibits phenomenon G2-item if
-DSG(H) contains a directed cycle having one or more item-antidependency edges.
-*/
 
 fun DSG[] : TrC -> TrC {
     ww + wr + rw
 }
 
-pred G2item {
+/*
+G2: Anti-dependency Cycles. A history H exhibits
+phenomenon G2 if DSG(H) contains a directed cycle
+with one or more anti-dependency edges.
+*/
+pred G2 {
+    // must contain a cycle
     some iden & ^DSG
-    not G1c
+
+    // must not contain a cycle if there are no antidependency edges
+    no iden & ^(DSG - rw)
+}
+
+
+/*
+G2-item: Item Anti-dependency Cycles. A history H exhibits phenomenon G2-item if
+DSG(H) contains a directed cycle having one or more item-antidependency edges.
+*/
+pred G2item {
+    // must contain a cycle
+    some iden & ^DSG
+
+    // must not contain a cycle if there are no item-antidependency edges
+    no iden & ^(DSG - irw)
 }
 
 /*
@@ -87,13 +108,20 @@ assert PL1 {
 
 
 assert PL2 {
-    not G1a
-    not G1b
-    not G1c
+    not G0
+    not G1
+}
+
+assert PL2_99 {
+    not G0
+    not G1
+    not G2item
 }
 
 assert PL3 {
-    not G2item
+    not G0
+    not G1
+    not G2
 }
 
 
@@ -364,7 +392,6 @@ sig VersionedValue {
 sig Val {}
 
 sig Version {}
-
 
 
 
