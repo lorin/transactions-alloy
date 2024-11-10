@@ -1,0 +1,69 @@
+<?xml version="1.0"?>
+<alloy>
+
+<view>
+
+<defaultnode/>
+
+<defaultedge/>
+
+<node>
+   <type name="A"/>
+   <type name="Abort"/>
+   <type name="Commit"/>
+   <type name="Int"/>
+   <type name="Rd"/>
+   <type name="RWOp"/>
+   <type name="String"/>
+   <type name="univ"/>
+   <type name="Wr"/>
+   <type name="X"/>
+   <type name="Y"/>
+   <type name="seq/Int"/>
+   <type name="vo/Ord"/>
+</node>
+
+<node hideunconnected="yes">
+   <type name="V"/>
+</node>
+
+<node shape="Circle" color="Gray">
+   <type name="T"/>
+</node>
+
+<node shape="Parallelogram" color="Blue">
+   <type name="CV"/>
+</node>
+
+<node visible="no">
+   <type name="Transaction"/>
+</node>
+
+<node visible="yes">
+   <type name="Op"/>
+</node>
+
+<node visible="yes" hideunconnected="yes">
+   <type name="Obj"/>
+</node>
+
+<edge visible="no">
+   <relation name="eo"> <type name="Op"/> <type name="Op"/> </relation>
+</edge>
+
+<edge visible="no" attribute="yes">
+   <relation name="obj"> <type name="CV"/> <type name="Obj"/> </relation>
+   <relation name="obj"> <type name="RWOp"/> <type name="Obj"/> </relation>
+   <relation name="tr"> <type name="CV"/> <type name="T"/> </relation>
+   <relation name="tr"> <type name="Op"/> <type name="Transaction"/> </relation>
+   <relation name="v"> <type name="CV"/> <type name="V"/> </relation>
+   <relation name="v"> <type name="RWOp"/> <type name="V"/> </relation>
+</edge>
+
+<edge visible="yes">
+   <relation name="cvs"> <type name="Obj"/> <type name="CV"/> </relation>
+</edge>
+
+</view>
+
+</alloy>

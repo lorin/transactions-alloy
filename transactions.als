@@ -1,5 +1,5 @@
 open util/relation
-open util/ordering[V]
+open util/ordering[V] as vo
 
 // transactions
 abstract sig Transaction {
@@ -86,12 +86,27 @@ abstract sig RWOp extends Op {
 // writes
 sig Wr extends RWOp {}
 
+pred first_write_of_obj[wr : Wr] {
+    no ww : wr.^~tn & Wr | ww.obj = wr.obj
+}
+
+fact "writes must happen in version order" {
+    // initial write is first version
+    all t : Transaction, wr : t.ops & Wr |
+        first_write_of_obj[wr] => wr.v = vo/first
+
+    // next writes are always successive versions
+    all t : Transaction, disj w1,w2 : t.ops & Wr |
+        ((w1->w2 in ^tn) and (no w3: t.ops & Wr | (w1->w3 + w3->w2) in ^tn)) => w2.v = next[w1.v]
+}
+
 // reads
 sig Rd extends RWOp {
     tw: Transaction,  // transaction that did the write
     sees: Wr // operation that did the write
 } {
     v = sees.@v // version read is same as verion written
+    obj = sees.@obj // object read is same as object written
     sees.@tr = tw // seen write op belongs to transaction that does the write
 }
 
@@ -101,7 +116,15 @@ sig V {}
 
 // committed versions
 sig CV {
-    
+    obj: Obj,
+    tr: T,
+    wr: Wr,
+    v: V
+} {
+    this in obj.cvs
+    wr in tr.ops
+    wr.@obj = obj
+    wr.@v = v
 }
 
 abstract sig Obj {
@@ -109,6 +132,18 @@ abstract sig Obj {
     cvs : set CV
 }
 
+fact "transaction can only commit one version" {
+    all obj : Obj |
+        no disj cv1, cv2 : obj.cvs |
+            cv1.tr = cv2.tr
+
+}
+
 one sig X,Y extends Obj {}
 
-run {some eo} for 6
+pred runner {
+    some eo
+    some CV
+}
+
+run runner for 6
