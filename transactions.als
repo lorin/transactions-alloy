@@ -1,4 +1,5 @@
 open util/relation
+open util/ordering[V]
 
 // transactions
 abstract sig Transaction {
@@ -77,7 +78,7 @@ fact "transaction-next" {
 // read-write operations
 abstract sig RWOp extends Op {
     obj: Obj,
-    val: Val
+    v: V
 }
 
 // writes
@@ -85,15 +86,25 @@ sig Wr extends RWOp {}
 
 // reads
 sig Rd extends RWOp {
-    sees: Wr
+    tw: Transaction,  // transaction that did the write
+    sees: Wr // operation that did the write
 } {
-    obj = sees.@obj
-    val = sees.@val
+    v = sees.@v // version read is same as verion written
+    sees.@tr = tw // seen write op belongs to transaction that does the write
 }
 
 
-sig Obj {}
+// versions
+sig V {}
 
-sig Val {}
+// committed versions
+sig CV {}
+
+abstract sig Obj {
+    // committed versions
+    cvs : set CV
+}
+
+one sig X,Y extends Obj {}
 
 run {some eo} for 6
