@@ -1,40 +1,60 @@
 open util/relation
 open util/ordering[V] as vo
 
+one sig X,Y extends Obj {}
+
+pred runner {
+    // no Abort
+    some eo
+    some cvn
+    // some CV
+}
+
+run runner for 6 but exactly 3 CV
+
+abstract sig Obj {
+    // committed versions
+    cvs : set CV,
+
+    // "next" relation of committed versions
+    cvn : CV lone -> lone CV
+}
+
 // transactions
 abstract sig Transaction {
     ops : set Op
 }
 
-
 // committed transactions
-sig T extends Transaction {} {
-    some Commit
-    Commit in ops
-}
+sig T extends Transaction {} 
+
 
 // aborted transactions
-sig A extends Transaction {} {
-    some Abort
-    Abort in ops
-}
+sig A extends Transaction {} 
 
 // Operations, also known as Events
 abstract sig Op {
     tr: Transaction,
     eo: set Op, // event order (partial ordering of events)
     tn: lone Op // transaction-next (next op in transaction)
-} {
-    this in tr.ops // this op is in the operations of the transactions it is associated with
-    one ~ops[this] // this op is associated with exactly one transaction
 }
 
 sig Commit extends Op {}
 
 sig Abort extends Op {}
 
+// read-write operations
+abstract sig RWOp extends Op {
+    obj: Obj,
+    v: V
+}
+
+// writes
+sig Wr extends RWOp {}
+
+
 // commit and abort
-fact {
+fact "commit and abort" {
     // all transactions contain a commit or an abort
     all t : Transaction | one t.ops & (Commit + Abort)
 
@@ -77,17 +97,45 @@ fact "transaction-next" {
 }
 
 
-// read-write operations
-abstract sig RWOp extends Op {
-    obj: Obj,
-    v: V
-}
-
-// writes
-sig Wr extends RWOp {}
-
 pred first_write_of_obj[wr : Wr] {
     no ww : wr.^~tn & Wr | ww.obj = wr.obj
+}
+
+// reads
+sig Rd extends RWOp {
+    tw: Transaction,  // transaction that did the write
+    sees: Wr // operation that did the write
+} 
+
+// versions
+sig V {}
+
+// committed versions
+sig CV {
+    obj: Obj,
+    tr: T,
+    wr: Wr,
+    v: V
+} 
+
+fact CommittedTransaction {
+    all t : T | some Commit & t.ops
+}
+
+fact AbortedTransaction {
+    all t : A | some Abort & t.ops
+}
+
+
+fact OpStuff {
+    all op : Op | {
+        op in op.tr.ops // this op is in the operations of the transactions it is associated with
+        one ~ops[op] // this op is associated with exactly one transaction
+    }
+}
+
+fact "committed versions are associated with the object" {
+    all o : Obj | o.cvs.obj in o
 }
 
 fact "writes must happen in version order" {
@@ -100,50 +148,37 @@ fact "writes must happen in version order" {
         ((w1->w2 in ^tn) and (no w3: t.ops & Wr | (w1->w3 + w3->w2) in ^tn)) => w2.v = next[w1.v]
 }
 
-// reads
-sig Rd extends RWOp {
-    tw: Transaction,  // transaction that did the write
-    sees: Wr // operation that did the write
-} {
-    v = sees.@v // version read is same as verion written
-    obj = sees.@obj // object read is same as object written
-    sees.@tr = tw // seen write op belongs to transaction that does the write
+
+
+fact RdSees {
+    all rd : Rd |  {
+        rd.v = rd.sees.v // version read is same as verion written
+        rd.obj = rd.sees.obj // object read is same as object written
+        rd.sees.tr = rd.tw // seen write op belongs to transaction that does the write
+    }
 }
 
-
-// versions
-sig V {}
-
-// committed versions
-sig CV {
-    obj: Obj,
-    tr: T,
-    wr: Wr,
-    v: V
-} {
-    this in obj.cvs
-    wr in tr.ops
-    wr.@obj = obj
-    wr.@v = v
-}
-
-abstract sig Obj {
-    // committed versions
-    cvs : set CV
+fact CommittedVersions {
+    all cv : CV |  {
+        cv in cv.obj.cvs
+        cv.wr.v = cv.v
+        cv.wr in cv.tr.ops
+        cv.wr.obj = cv.obj
+    }
 }
 
 fact "transaction can only commit one version" {
     all obj : Obj |
         no disj cv1, cv2 : obj.cvs |
             cv1.tr = cv2.tr
-
 }
 
-one sig X,Y extends Obj {}
-
-pred runner {
-    some eo
-    some CV
+fact "CV-next relation" {
+    all o : Obj | {
+        irreflexive[o.cvn]
+        totalOrder[*(o.cvn), o.cvs]
+    }
 }
 
-run runner for 6
+
+// run runner for 6 but exactly 2 CV //, exactly 2 T
