@@ -9,11 +9,13 @@ abstract sig Transaction {
 
 // committed transactions
 sig T extends Transaction {} {
+    some Commit
     Commit in ops
 }
 
 // aborted transactions
 sig A extends Transaction {} {
+    some Abort
     Abort in ops
 }
 
@@ -98,7 +100,9 @@ sig Rd extends RWOp {
 sig V {}
 
 // committed versions
-sig CV {}
+sig CV {
+    
+}
 
 abstract sig Obj {
     // committed versions
