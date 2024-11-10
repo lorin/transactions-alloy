@@ -39,16 +39,18 @@
    <type name="Transaction"/>
 </node>
 
+<node visible="no" hideunconnected="yes">
+   <type name="Obj"/>
+</node>
+
 <node visible="yes">
    <type name="Op"/>
 </node>
 
-<node visible="yes" hideunconnected="yes">
-   <type name="Obj"/>
-</node>
-
 <edge visible="no">
+   <relation name="cvn"> <type name="Obj"/> <type name="CV"/> <type name="CV"/> </relation>
    <relation name="eo"> <type name="Op"/> <type name="Op"/> </relation>
+   <relation name="wr"> <type name="CV"/> <type name="Wr"/> </relation>
 </edge>
 
 <edge visible="no" attribute="yes">
@@ -62,6 +64,8 @@
 
 <edge visible="yes">
    <relation name="cvs"> <type name="Obj"/> <type name="CV"/> </relation>
+   <relation name="installs"> <type name="Wr"/> <type name="CV"/> </relation>
+   <relation name="vn"> <type name="CV"/> <type name="CV"/> </relation>
 </edge>
 
 </view>

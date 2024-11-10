@@ -5,12 +5,13 @@ one sig X,Y extends Obj {}
 
 pred runner {
     // no Abort
-    some eo
-    some cvn
+    // some eo
+    // some cvn
     // some CV
+    no A
 }
 
-run runner for 6 but exactly 3 CV
+run runner for 3 but exactly 1 T
 
 abstract sig Obj {
     // committed versions
@@ -50,7 +51,9 @@ abstract sig RWOp extends Op {
 }
 
 // writes
-sig Wr extends RWOp {}
+sig Wr extends RWOp {
+    installs : lone CV
+}
 
 
 // commit and abort
@@ -115,8 +118,13 @@ sig CV {
     obj: Obj,
     tr: T,
     wr: Wr,
-    v: V
+    v: V,
+    vn: lone CV // next-version
 } 
+
+fact CommittedVersionNextVersion {
+    vn = Obj.cvn
+}
 
 fact CommittedTransaction {
     all t : T | some Commit & t.ops
@@ -124,6 +132,10 @@ fact CommittedTransaction {
 
 fact AbortedTransaction {
     all t : A | some Abort & t.ops
+}
+
+fact InstallsCommittedVersion {
+    installs = ~(CV <: wr)
 }
 
 
