@@ -10,6 +10,7 @@ https://pmg.csail.mit.edu/papers/icde00.pdf
 
 open util/ordering[Version] as vo
 open util/ordering[Op] as oo
+open util/relation
 
 // transactions
 abstract sig Tr {
@@ -25,12 +26,28 @@ sig TrA extends Tr {}
 // Operations
 abstract sig Op {
     tr: Tr,
+    eo: set Op, // event order (partial ordering of events)
     tn: lone Op // transaction-next (next op in transaction)
 } {
     this in tr.ops // this op is in the operations of the transactions it is associated with
     one ~ops[this] // this op is associated with exactly one transaction
 }
 
+fact "event ordering" {
+    partialOrder[eo, Op]
+    // irreflexive[eo]
+
+    // It preserves the order of all events within a transaction
+    tn in eo
+
+    // If an event rj (xi:m) exists in E, it is preceded by
+    // wi (xi:m) in E.
+    sees in eo
+
+    // consistent with the total order
+    all disj o1, o2 : Op |
+        o1->o2 in eo <=> lt[o1, o2]
+}
 
 // read-write operations
 abstract sig RWOp extends Op {
@@ -47,6 +64,36 @@ sig Rd extends RWOp {
 } {
     obj = sees.@obj
     val = sees.@val
+}
+
+fact TransactionNext {
+    tn = { disj o1, o2 : Op | {
+            o1.tr = o2.tr
+            o1->o2 in ^oo/next
+            no o3 : Op | {
+                o3.tr = o1.tr 
+                o1->o3 in ^oo/next 
+                o3->o2 in ^oo/next
+            }
+        } }
+}
+
+
+/*
+
+4.2 Transaction histories
+
+...
+
+If an event rj (xi:m) exists in E, it is preceded by wi (xi:m) in E, i.e., a
+transaction Tj cannot read version xi:m of object x before it has been produced
+by Ti . Note that the version read by Tj is not necessarily the most recently
+installed version in the committed database state; also, Ti may be uncommitted
+when rj (xi:m) occurs.
+
+*/
+fact "cannot read a version before it has been produced" {
+    all rd : Rd | oo/lt[rd.sees, rd]
 }
 
 run {no PRead; some Rd} for 3 but exactly 10 Op, exactly 2 Obj, exactly 3 Val
@@ -334,18 +381,6 @@ fun written[o: Obj, wrs: set Wr] : Val {
     {wr : wrs | wr.obj = o}.val
 }
 
-fact TransactionNext {
-    tn = { disj o1, o2 : Op | {
-            o1.tr = o2.tr
-            o1->o2 in ^oo/next
-            no o3 : Op | {
-                o3.tr = o1.tr 
-                o1->o3 in ^oo/next 
-                o3->o2 in ^oo/next
-            }
-        } }
-}
-
 
 // Objects
 sig Obj {
@@ -393,7 +428,7 @@ sig Version {}
 // check PL3 for 4
 
 
-run {some Predicate} for 3 but exactly 2 Tr, exactly 5 Op
+run {no Predicate; some Rd} for 3 but exactly 4 Tr, exactly 10 Op
 
 
 /*
