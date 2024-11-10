@@ -17,7 +17,6 @@
    <type name="String"/>
    <type name="univ"/>
    <type name="Wr"/>
-   <type name="X"/>
    <type name="Y"/>
    <type name="seq/Int"/>
    <type name="vo/Ord"/>
@@ -25,10 +24,6 @@
 
 <node hideunconnected="yes">
    <type name="V"/>
-</node>
-
-<node shape="Circle" color="Gray">
-   <type name="T"/>
 </node>
 
 <node shape="Parallelogram" color="Blue">
@@ -39,6 +34,10 @@
    <type name="Transaction"/>
 </node>
 
+<node visible="no" hideunconnected="no">
+   <type name="X"/>
+</node>
+
 <node visible="no" hideunconnected="yes">
    <type name="Obj"/>
 </node>
@@ -47,9 +46,15 @@
    <type name="Op"/>
 </node>
 
+<node visible="yes" shape="Circle" color="Gray">
+   <type name="T"/>
+</node>
+
 <edge visible="no">
    <relation name="cvn"> <type name="Obj"/> <type name="CV"/> <type name="CV"/> </relation>
    <relation name="eo"> <type name="Op"/> <type name="Op"/> </relation>
+   <relation name="ops"> <type name="Transaction"/> <type name="Op"/> </relation>
+   <relation name="tw"> <type name="Rd"/> <type name="Transaction"/> </relation>
    <relation name="wr"> <type name="CV"/> <type name="Wr"/> </relation>
 </edge>
 

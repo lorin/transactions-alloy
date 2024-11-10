@@ -162,6 +162,23 @@ fact InstallsCommittedVersion {
     installs = ~(CV <: wr)
 }
 
+fact "installed version is always last commit" {
+    all t : T, wr : t.ops & Wr |
+        (some wr.installs) => (no ww : wr.(^tn) & Wr | ww.obj = wr.obj)
+}
+
+fact "if a read sees a write in the same transaction, it must be the most recent one" {
+    all t : Transaction, rd : t.ops & Rd | 
+        (rd.sees in t.ops) => no wr : t.ops & Wr | {
+            rd.obj = wr.obj
+            // wr is before rd 
+            wr in rd.^~tn
+
+            // wr is after the seen write (rd.sees)
+            wr in rd.sees.^tn
+        }
+}
+
 fact OpStuff {
     all op : Op | {
         op in op.tr.ops // this op is in the operations of the transactions it is associated with
