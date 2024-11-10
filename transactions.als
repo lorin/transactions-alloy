@@ -12,10 +12,17 @@ pred runner {
     some Rd
     some CV
     some cvn
-
+    some ww
 }
 
-run runner for 6 // but exactly 2 T
+pred multiple_writes {
+    no A
+    one T
+    #Wr > 1
+}
+
+// run runner for 6 // but exactly 2 T
+run multiple_writes for 6 // but exactly 2 T
 
 abstract sig Obj {
     // committed versions
@@ -31,7 +38,9 @@ abstract sig Transaction {
 }
 
 // committed transactions
-sig T extends Transaction {} 
+sig T extends Transaction {
+    ww : set T
+} 
 
 
 // aborted transactions
@@ -164,6 +173,13 @@ fact "committed versions are associated with the object" {
     all o : Obj | o.cvs.obj in o
 }
 
+fact "cvn relations must be associated with the object" {
+    all o : Obj |  {
+        no o.cvn.CV.obj - o
+        no o.cvn[CV].obj - o
+    }
+}
+
 fact "writes must happen in version order" {
     // initial write is first version
     all t : Transaction, wr : t.ops & Wr |
@@ -202,4 +218,16 @@ fact "CV-next relation" {
         irreflexive[o.cvn]
         totalOrder[*(o.cvn), o.cvs]
     }
+}
+
+fact DirectlyWriteDepends {
+    irreflexive[ww]
+
+    all disj Ti, Tj : T | Ti->Tj in ww => 
+        some cv1 : Ti.ops.installs, cv2 : Tj.ops.installs | {
+            cv1.obj = cv2.obj
+            cv1.tr = Ti
+            cv2.tr = Tj
+            cv1->cv2 in vn
+        }
 }
