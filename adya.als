@@ -322,15 +322,6 @@ sig Env {
     Obj in mapping.Val
 }
 
-
-/**
- * Given a set of complete set of object writes, create a relation
- * that maps objects to their written values
- */
-fun env[wrs : set Wr] : Obj -> Val {
-    {o: Obj, v: Val | v = written[o, wrs]}
-}
-
 /**
  * Given a set of object writes, return the correspond Env
  * that maps objects to their written values
