@@ -9,9 +9,13 @@ pred runner {
     // some cvn
     // some CV
     no A
+    some Rd
+    some CV
+    some cvn
+
 }
 
-run runner for 3 but exactly 1 T
+run runner for 6 // but exactly 2 T
 
 abstract sig Obj {
     // committed versions
@@ -56,13 +60,45 @@ sig Wr extends RWOp {
 }
 
 
-// commit and abort
+pred first_write_of_obj[wr : Wr] {
+    no ww : wr.^~tn & Wr | ww.obj = wr.obj
+}
+
+// reads
+sig Rd extends RWOp {
+    tw: Transaction,  // transaction that did the write
+    sees: Wr // operation that did the write
+} 
+
+// versions
+sig V {}
+
+// committed versions
+sig CV {
+    obj: Obj,
+    tr: T,
+    wr: Wr,
+    v: V,
+    vn: lone CV // next-version
+} 
+
+fact OpStuff {
+    all op : Op | {
+        op in op.tr.ops // this op is in the operations of the transactions it is associated with
+        one ~ops[op] // this op is associated with exactly one transaction
+    }
+}
+
+fact "no empty transactions" {
+    no t : Transaction | no t.ops - (Commit + Abort)
+}
+
 fact "commit and abort" {
     // all transactions contain a commit or an abort
     all t : Transaction | one t.ops & (Commit + Abort)
 
     // no transactions contain both a commit and abort
-    no t : Transaction | Commit in t.ops and Abort in t.ops
+    no t : Transaction | some Commit & t.ops and some Abort & t.ops
 
     // commits and aborts come last
     no Commit.tn
@@ -100,28 +136,6 @@ fact "transaction-next" {
 }
 
 
-pred first_write_of_obj[wr : Wr] {
-    no ww : wr.^~tn & Wr | ww.obj = wr.obj
-}
-
-// reads
-sig Rd extends RWOp {
-    tw: Transaction,  // transaction that did the write
-    sees: Wr // operation that did the write
-} 
-
-// versions
-sig V {}
-
-// committed versions
-sig CV {
-    obj: Obj,
-    tr: T,
-    wr: Wr,
-    v: V,
-    vn: lone CV // next-version
-} 
-
 fact CommittedVersionNextVersion {
     vn = Obj.cvn
 }
@@ -134,10 +148,10 @@ fact AbortedTransaction {
     all t : A | some Abort & t.ops
 }
 
+
 fact InstallsCommittedVersion {
     installs = ~(CV <: wr)
 }
-
 
 fact OpStuff {
     all op : Op | {
@@ -159,8 +173,6 @@ fact "writes must happen in version order" {
     all t : Transaction, disj w1,w2 : t.ops & Wr |
         ((w1->w2 in ^tn) and (no w3: t.ops & Wr | (w1->w3 + w3->w2) in ^tn)) => w2.v = next[w1.v]
 }
-
-
 
 fact RdSees {
     all rd : Rd |  {
@@ -191,6 +203,3 @@ fact "CV-next relation" {
         totalOrder[*(o.cvn), o.cvs]
     }
 }
-
-
-// run runner for 6 but exactly 2 CV //, exactly 2 T
