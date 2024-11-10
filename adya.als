@@ -35,14 +35,13 @@ abstract sig Op {
 
 fact "event ordering" {
     partialOrder[eo, Op]
-    // irreflexive[eo]
 
     // It preserves the order of all events within a transaction
     tn in eo
 
     // If an event rj (xi:m) exists in E, it is preceded by
     // wi (xi:m) in E.
-    sees in eo
+    ~sees in eo
 
     // consistent with the total order
     all disj o1, o2 : Op |
