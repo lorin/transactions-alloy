@@ -1,7 +1,7 @@
 open util/relation
 
 // transactions
-abstract sig Tr {
+sig Tr {
     ops : set Op
 }
 
@@ -15,19 +15,45 @@ abstract sig Op {
     one ~ops[this] // this op is associated with exactly one transaction
 }
 
+sig Commit extends Op {}
+
+sig Abort extends Op {}
+
+// commit and abort
+fact {
+    // all transactions contain a commit or an abort
+    all t : Tr | one t.ops & (Commit + Abort)
+
+    // no transactions contain both a commit and abort
+    no t : Tr | Commit in t.ops and Abort in t.ops
+
+    // commits and aborts come last
+    no Commit.tn
+    no Abort.tn
+}
+
+// See 4.2: Transaction histoires
 fact "event ordering" {
     partialOrder[eo, Op]
 
-    // If an event rj (xi:m) exists in E, it is preceded by
-    // wi (xi:m) in E.
-    // sees goes in the opposite direction of execution order (read "sees" a write backwards in time)
+    // If an event rj (xi:m) exists in E, it is preceded by wi (xi:m) in E.
+    // Note: sees points in the opposite direction of event order (sees points backwards in time, eo points forward)
     sees in ~eo
+
+    // If an event wi (xi:m) is followed by ri (xj ) without an
+    // intervening event wi (xi:n) in E, xj must be xi:m. This
+    // condition ensures that if a transaction modifies object
+    // x and later reads x, it will observe its last update to x.
+    all tr : Tr, wr : Wr & tr.ops, rd : Rd & tr.ops |
+        ((wr->rd in eo) and (no ww : Wr & tr.ops | (wr->ww + ww->rd) in eo)) => rd.sees = wr
 }
 
 fact "transaction-next" {
     irreflexive[tn]
 
-    // tn preserves the order of all events within a transaction
+    // Section 4.2:
+    // It preserves the order of all events within a transaction
+    // including the commit and abort events
     tn in eo
 
     // every pair of ops in a transaction must be reachable via tn 
@@ -53,6 +79,7 @@ sig Rd extends RWOp {
     obj = sees.@obj
     val = sees.@val
 }
+
 
 sig Obj {}
 
