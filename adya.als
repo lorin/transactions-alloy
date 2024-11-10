@@ -250,7 +250,7 @@ fun wr[] : TrC -> TrC {
 /*
 Directly item-read-depends:
 
-We say that Tj directly itemread-depends on Ti if Ti installs some object version
+We say that Tj directly item-read-depends on Ti if Ti installs some object version
 xi and Tj reads xi
 */
 fun iwr[] : TrC -> TrC {

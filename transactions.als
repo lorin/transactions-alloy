@@ -21,8 +21,14 @@ pred multiple_writes {
     #Wr > 1
 }
 
+pred deps {
+    some ww
+    some T <: wr
+}
+
 // run runner for 6 // but exactly 2 T
-run multiple_writes for 6 // but exactly 2 T
+// run multiple_writes for 6 // but exactly 2 T
+run deps for 6 // but exactly 2 T
 
 abstract sig Obj {
     // committed versions
@@ -39,7 +45,10 @@ abstract sig Transaction {
 
 // committed transactions
 sig T extends Transaction {
-    ww : set T
+    ww : set T,
+    iwr : set T, // directly item-read-depends
+    pwr : set T, // directly predicate-read-depends
+    wr : set T, // directly read-depends
 } 
 
 
@@ -247,4 +256,27 @@ fact DirectlyWriteDepends {
             cv2.tr = Tj
             cv1->cv2 in vn
         }
+}
+
+fact DirectlyReadDepends {
+    wr = iwr + pwr
+}
+
+
+/*
+We say that Tj directly item-read-depends on Ti if Ti installs some object version
+xi and Tj reads xi
+*/
+fact DirectlyItemReadDepends {
+    irreflexive[iwr]
+
+    all disj Ti, Tj : T | Ti->Tj in iwr => 
+        some cv : Ti.ops.installs, rd : Rd & Tj.ops {
+            rd.sees = cv.wr
+        }
+}
+
+fact DirectlyPredicateReadDepends {
+    // TODO: implement this
+    no pwr
 }
