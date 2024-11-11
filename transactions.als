@@ -335,19 +335,22 @@ fact "cvn relations must be associated with the object" {
     }
 }
 
-// -- 
-
-fact "writes must happen in version order" {
-    // initial write is first version
+fact "initial write of an object is the first version" {
     all t : Transaction, wr : t.ops & Wr |
         first_write_of_obj[wr] => wr.v = vo/first
-
-    // next writes are always successive versions
-    all t : Transaction, disj w1,w2 : t.ops & Wr |
-        ((w1->w2 in ^tn) and (no w3: t.ops & Wr | (w1->w3 + w3->w2) in ^tn)) => w2.v = next[w1.v]
 }
 
-// bottom
+fact "next writes are always successive versions" {
+    all t : Transaction, disj w1,w2 : t.ops & Wr | {
+        w1.obj = w2.obj
+        w1->w2 in ^tn
+        no w3 : t.ops & Wr | {
+            w1.obj = w3.obj
+            w1->w3 in ^tn
+            w3->w2 in ^tn
+        }} => w2.v = next[w1.v]
+}
+
 
 fact RdSees {
     all rd : Rd |  {
@@ -411,6 +414,7 @@ fact DirectlyItemReadDepends {
             rd.sees = cv.wr
         }
 }
+
 
 fact DirectlyAntiDepends {
     rw = irw + prw
