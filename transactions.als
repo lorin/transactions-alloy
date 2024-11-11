@@ -13,6 +13,19 @@ pred G0 {
     some iden & ^ww
 }
 
+
+/*
+G1a: Aborted Reads
+
+A history H shows phenomenon G1a if it contains an aborted transaction T1 and a
+committed transaction T2 such that T2 has read some object modified by T1
+
+*/
+pred G1a {
+    some T1 : A, T2 : T, r : T2.ops & Rd, w : T1.ops & Wr | r.sees = w
+}
+
+
 /*
 we define PL-1 as the level in which
 G0 is disallowed
@@ -21,11 +34,15 @@ assert PL1 {
     not G0
 }
 
+assert PL2 {
+    not G1a
+}
+
 pred multi_writes[t : Transaction] {
     #(t.ops & Wr) > 1
 }
 
-// check PL1 for 8 but exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset, exactly 0 OV
+check PL2 for 8 but exactly 0 P, exactly 0 Vset, exactly 0 OV
 
 
 
