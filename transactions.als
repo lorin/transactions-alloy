@@ -3,6 +3,45 @@ open util/ordering[V] as vo
 
 one sig X,Y extends Obj {}
 
+
+
+/*
+we define PL-1 as the level in which
+G0 is disallowed
+*/
+assert PL1 {
+    not G0
+}
+
+// check PL1 for 10 but exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset, exactly 0 OV
+
+
+pred multi_writes[t : Transaction] {
+    #(t.ops & Wr) > 1
+}
+
+/*
+run {
+    some ww
+    some t : T | multi_writes[t]
+    X+Y in Wr.obj
+    // multiple CVs for both X and Y
+    #{cv : CV | cv.obj=X} > 1
+    #{cv : CV | cv.obj=Y} > 1
+} for 9 but exactly 4 T, exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset, exactly 0 OV, exactly 4 CV
+*/
+
+
+// multiple installs
+run {
+    some t : T | #(t.ops & Wr) > 1
+    some t : T | #(t.ops.installs) >= 1
+    // Writes to multiple objects
+    some t : T, disj w1, w2 : (t.ops & Wr) | no w1.obj & w2.obj
+
+} for 6 but exactly 1 T, exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset, exactly 0 OV
+
+
 pred runner {
     // no Abort
     // some eo
@@ -29,7 +68,7 @@ pred deps {
     some rw
 }
 
-run runner for 8 // but exactly 2 T
+// run runner for 8 // but exactly 2 T
 // run multiple_writes for 6 // but exactly 2 T
 // run deps for 8 but exactly 4 T
 
@@ -234,7 +273,7 @@ fact InstallsCommittedVersion {
     installs = ~(CV <: wr)
 }
 
-fact "installed version is always last commit" {
+fact "installed version is always last write for that object" {
     all t : T, wr : t.ops & Wr |
         (some wr.installs) => (no ww : wr.(^tn) & Wr | ww.obj = wr.obj)
 }
@@ -312,7 +351,7 @@ fact "CV-next relation" {
 fact DirectlyWriteDepends {
     irreflexive[ww]
 
-    all disj Ti, Tj : T | Ti->Tj in ww => 
+    all disj Ti, Tj : T | Ti->Tj in ww <=> 
         some cv1 : Ti.ops.installs, cv2 : Tj.ops.installs | {
             cv1.obj = cv2.obj
             cv1.tr = Ti
@@ -376,4 +415,14 @@ fact DirectlyPredicateReadDepends {
 fact DirectlyPredicateAntiDepends {
     // TODO implement this
     no prw
+}
+
+
+/*
+G0: Write Cycles. A history H exhibits phenomenon
+G0 if DSG(H) contains a directed cycle consisting
+entirely of write-dependency edges.
+*/
+pred G0 {
+    some iden & ^ww
 }
