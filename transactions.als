@@ -27,6 +27,26 @@ pred G1a {
 
 
 /*
+G1b: Intermediate Reads. 
+
+A history H shows phenomenon G1b if it contains a committed transaction
+T2 that has read a version of object x written by transaction T1 that was not T1’s
+final modification of x.
+*/
+pred G1b {
+    some T1 : Transaction, T2 : T, r : T2.ops & Rd | let x = r.obj, wi=r.sees |
+    {
+        no T1 & T2 // different transactions
+        wi.tr = T1
+        some wj : (T1.ops - wi) & Wr | {
+            wj.obj = x
+            wi->wj in eo
+        }
+    }
+}
+
+
+/*
 we define PL-1 as the level in which
 G0 is disallowed
 */
@@ -35,7 +55,7 @@ assert PL1 {
 }
 
 assert PL2 {
-    not G1a
+    not G1b
 }
 
 pred multi_writes[t : Transaction] {
