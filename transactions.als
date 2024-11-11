@@ -13,6 +13,9 @@ pred G0 {
     some iden & ^ww
 }
 
+pred G1 {
+    G1a or G1b or G1c
+}
 
 /*
 G1a: Aborted Reads
@@ -45,6 +48,53 @@ pred G1b {
     }
 }
 
+/*
+G1c: Circular Information Flow.
+
+A history H exhibits phenomenon G1c if DSG(H) contains a directed cycle
+consisting entirely of dependency edges
+*/
+pred G1c {
+    some iden & ^(ww + wr)
+}
+
+fun DSG[] : T -> T {
+    ww + wr + rw
+}
+
+/*
+G2: Anti-dependency Cycles. A history H exhibits
+phenomenon G2 if DSG(H) contains a directed cycle
+with one or more anti-dependency edges.
+*/
+pred G2 {
+    // must contain a cycle
+    some iden & ^DSG
+
+    // must not contain a cycle if there are no antidependency edges
+    no iden & ^(DSG - rw)
+}
+
+
+/*
+G2-item: Item Anti-dependency Cycles. A history H exhibits phenomenon G2-item if
+DSG(H) contains a directed cycle having one or more item-antidependency edges.
+*/
+pred G2item {
+    // must contain a cycle
+    some iden & ^DSG
+
+    // must not contain a cycle if there are no item-antidependency edges
+    no iden & ^(DSG - irw)
+}
+
+
+assert PL2_99 {
+    not G0
+    not G1
+    not G2item
+}
+
 
 /*
 we define PL-1 as the level in which
@@ -55,18 +105,19 @@ assert PL1 {
 }
 
 assert PL2 {
+    not G1a
     not G1b
+    not G1c
 }
 
 pred multi_writes[t : Transaction] {
     #(t.ops & Wr) > 1
 }
 
-check PL2 for 8 but exactly 0 P, exactly 0 Vset, exactly 0 OV
+check PL2_99 for 8 but exactly 0 P, exactly 0 Vset, exactly 0 OV
 
 
 
-/*
 run {
     some ww
     some t : T | multi_writes[t]
@@ -75,7 +126,6 @@ run {
     #{cv : CV | cv.obj=X} > 1
     #{cv : CV | cv.obj=Y} > 1
 } for 9 but exactly 4 T, exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset, exactly 0 OV, exactly 4 CV
-*/
 
 
 // multiple installs
@@ -188,7 +238,7 @@ sig V {}
 sig CV {
     obj: Obj,
     tr: T,
-    wr: Wr,
+    wo: Wr, // write operation
     v: V,
     vn: lone CV // next-version
 } 
@@ -334,13 +384,14 @@ fact AbortedTransaction {
 
 
 fact InstallsCommittedVersion {
-    installs = ~(CV <: wr)
+    installs = ~wo
 }
 
 fact "installed version is always last write for that object" {
     all t : T, wr : t.ops & Wr |
-        (some wr.installs) => (no ww : wr.(^tn) & Wr | ww.obj = wr.obj)
+        (some wr.installs) <=> (no ww : wr.(^tn) & Wr | ww.obj = wr.obj)
 }
+
 
 fact "if a read sees a write in the same transaction, it must be the most recent one" {
     all t : Transaction, rd : t.ops & Rd | 
@@ -402,9 +453,9 @@ fact RdSees {
 fact CommittedVersions {
     all cv : CV |  {
         cv in cv.obj.cvs
-        cv.wr.v = cv.v
-        cv.wr in cv.tr.ops
-        cv.wr.obj = cv.obj
+        cv.wo.v = cv.v
+        cv.wo in cv.tr.ops
+        cv.wo.obj = cv.obj
     }
 }
 
@@ -448,7 +499,7 @@ fact DirectlyItemReadDepends {
 
     all disj Ti, Tj : T | Ti->Tj in iwr => 
         some cv : Ti.ops.installs, rd : Rd & Tj.ops {
-            rd.sees = cv.wr
+            rd.sees = cv.wo
         }
 }
 
