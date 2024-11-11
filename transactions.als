@@ -4,6 +4,14 @@ open util/ordering[V] as vo
 one sig X,Y extends Obj {}
 
 
+/*
+G0: Write Cycles. A history H exhibits phenomenon
+G0 if DSG(H) contains a directed cycle consisting
+entirely of write-dependency edges.
+*/
+pred G0 {
+    some iden & ^ww
+}
 
 /*
 we define PL-1 as the level in which
@@ -13,12 +21,13 @@ assert PL1 {
     not G0
 }
 
-// check PL1 for 10 but exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset, exactly 0 OV
-
-
 pred multi_writes[t : Transaction] {
     #(t.ops & Wr) > 1
 }
+
+// check PL1 for 8 but exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset, exactly 0 OV
+
+
 
 /*
 run {
@@ -33,13 +42,14 @@ run {
 
 
 // multiple installs
+// NOTE: this is the thing that currently isn't working
 run {
     some t : T | #(t.ops & Wr) > 1
-    some t : T | #(t.ops.installs) >= 1
+    some t : T | #(t.ops.installs) > 1
     // Writes to multiple objects
-    some t : T, disj w1, w2 : (t.ops & Wr) | no w1.obj & w2.obj
+    // some t : T, disj w1, w2 : (t.ops & Wr) | no w1.obj & w2.obj
 
-} for 6 but exactly 1 T, exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset, exactly 0 OV
+} for 8 but exactly 1 T, exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset, exactly 0 OV
 
 
 pred runner {
@@ -168,6 +178,7 @@ sig PRead extends Op {
     objs : set Obj
 }
 
+
 fact "predicate read is consistent with predicate" {
     all pread : PRead | pread.p.eval[pread.vset] = pread.objs
 }
@@ -187,6 +198,7 @@ fact "object versions must correpsond to a write" {
         ov.v = wr.v
     }
 }
+
 
 fact "Vsets are complete" {
     all vset : Vset | 
@@ -213,48 +225,63 @@ fact "no empty transactions" {
     no t : Transaction | no t.ops - (Commit + Abort)
 }
 
-fact "commit and abort" {
-    // all transactions contain a commit or an abort
+fact "all transactions contain a commit or an abort" {
     all t : Transaction | one t.ops & (Commit + Abort)
+}
 
-    // no transactions contain both a commit and abort
+fact "no transasctions contain both a commit and an abort" {
     no t : Transaction | some Commit & t.ops and some Abort & t.ops
+}
 
-    // commits and aborts come last
-    no Commit.tn
+fact "nothing comes after an abort" {
     no Abort.tn
 }
 
+
+// This fact is inconsistent with something else!
+fact "nothing comes after a commit" {
+    no Commit.tn
+}
+
+fact "tn is irreflexive" {
+    irreflexive[tn]
+}
+
+
 // See 4.2: Transaction histoires
-fact "event ordering" {
+fact {
     partialOrder[eo, Op]
+}
 
-    // If an event rj (xi:m) exists in E, it is preceded by wi (xi:m) in E.
-    // Note: sees points in the opposite direction of event order (sees points backwards in time, eo points forward)
+
+// If an event rj (xi:m) exists in E, it is preceded by wi (xi:m) in E.
+// Note: sees points in the opposite direction of event order (sees points backwards in time, eo points forward)
+fact {
     sees in ~eo
+}
 
-    // If an event wi (xi:m) is followed by ri (xj ) without an
-    // intervening event wi (xi:n) in E, xj must be xi:m. This
-    // condition ensures that if a transaction modifies object
-    // x and later reads x, it will observe its last update to x.
+// If an event wi (xi:m) is followed by ri (xj ) without an
+// intervening event wi (xi:n) in E, xj must be xi:m. This
+// condition ensures that if a transaction modifies object
+// x and later reads x, it will observe its last update to x.
+fact {
     all tr : Transaction, wr : Wr & tr.ops, rd : Rd & tr.ops |
         ((wr->rd in eo) and (no ww : Wr & tr.ops | (wr->ww + ww->rd) in eo)) => rd.sees = wr
 }
 
-fact "transaction-next" {
-    irreflexive[tn]
 
-    // Section 4.2:
-    // It preserves the order of all events within a transaction
-    // including the commit and abort events
+// Section 4.2:
+// It preserves the order of all events within a transaction
+// including the commit and abort events
+fact {
     tn in eo
-
-    // every pair of ops in a transaction must be reachable via tn 
-    // in one direction or the other
-    all t : Transaction, disj o1, o2: t.ops |
-        o1->o2 in ^tn + ^~tn
 }
 
+// all operations in a transaction are reachable from some first operation
+fact {
+    all t : Transaction | some op : t.ops |
+        (t.ops - op) in op.^tn
+}
 
 fact CommittedVersionNextVersion {
     vn = Obj.cvn
@@ -308,6 +335,8 @@ fact "cvn relations must be associated with the object" {
     }
 }
 
+// -- 
+
 fact "writes must happen in version order" {
     // initial write is first version
     all t : Transaction, wr : t.ops & Wr |
@@ -318,6 +347,8 @@ fact "writes must happen in version order" {
         ((w1->w2 in ^tn) and (no w3: t.ops & Wr | (w1->w3 + w3->w2) in ^tn)) => w2.v = next[w1.v]
 }
 
+// bottom
+
 fact RdSees {
     all rd : Rd |  {
         rd.v = rd.sees.v // version read is same as verion written
@@ -325,6 +356,8 @@ fact RdSees {
         rd.sees.tr = rd.tw // seen write op belongs to transaction that does the write
     }
 }
+
+
 
 fact CommittedVersions {
     all cv : CV |  {
@@ -334,6 +367,7 @@ fact CommittedVersions {
         cv.wr.obj = cv.obj
     }
 }
+
 
 fact "transaction can only commit one version" {
     all obj : Obj |
@@ -347,6 +381,8 @@ fact "CV-next relation" {
         totalOrder[*(o.cvn), o.cvs]
     }
 }
+
+// ++
 
 fact DirectlyWriteDepends {
     irreflexive[ww]
@@ -365,10 +401,8 @@ fact DirectlyReadDepends {
 }
 
 
-/*
-We say that Tj directly item-read-depends on Ti if Ti installs some object version
-xi and Tj reads xi
-*/
+// We say that Tj directly item-read-depends on Ti if Ti installs some object version
+// xi and Tj reads xi
 fact DirectlyItemReadDepends {
     irreflexive[iwr]
 
@@ -388,16 +422,16 @@ pred reads[t : Transaction, cv: CV] {
 }
 
 
-/*
-Directly item-anti-depends: We say that Tj directly item-anti-depends on
-transaction Ti if Ti reads some object version xk and Tj installs x’s next
-version (after xk ) in the version order. Note that the transaction that wrote
-the later version directly item-anti-depends on the transaction that read the
-earlier version
-*/
+
+// Directly item-anti-depends: We say that Tj directly item-anti-depends on
+// transaction Ti if Ti reads some object version xk and Tj installs x’s next
+// version (after xk ) in the version order. Note that the transaction that wrote
+// the later version directly item-anti-depends on the transaction that read the
+// earlier version
+// 
 fact DirectlyItemAntiDepends {
     irreflexive[irw]
-    all disj Ti, Tj : T | Ti->Tj in irw =>
+    all disj Ti, Tj : T | Ti->Tj in irw <=>
         some xk : CV | {
             // Ti reads xk
             reads[Ti, xk]
@@ -415,14 +449,4 @@ fact DirectlyPredicateReadDepends {
 fact DirectlyPredicateAntiDepends {
     // TODO implement this
     no prw
-}
-
-
-/*
-G0: Write Cycles. A history H exhibits phenomenon
-G0 if DSG(H) contains a directed cycle consisting
-entirely of write-dependency edges.
-*/
-pred G0 {
-    some iden & ^ww
 }
