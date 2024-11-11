@@ -50,11 +50,19 @@
    <type name="T"/>
 </node>
 
+<edge style="Dashed">
+   <relation name="rw"> <type name="T"/> <type name="T"/> </relation>
+</edge>
+
 <edge visible="no">
    <relation name="cvn"> <type name="Obj"/> <type name="CV"/> <type name="CV"/> </relation>
    <relation name="eo"> <type name="Op"/> <type name="Op"/> </relation>
+   <relation name="irw"> <type name="T"/> <type name="T"/> </relation>
+   <relation name="iwr"> <type name="T"/> <type name="T"/> </relation>
    <relation name="ops"> <type name="Transaction"/> <type name="Op"/> </relation>
-   <relation name="tw"> <type name="Rd"/> <type name="Transaction"/> </relation>
+   <relation name="prw"> <type name="T"/> <type name="T"/> </relation>
+   <relation name="pwr"> <type name="T"/> <type name="T"/> </relation>
+   <relation name="sees"> <type name="Rd"/> <type name="Wr"/> </relation>
    <relation name="wr"> <type name="CV"/> <type name="Wr"/> </relation>
 </edge>
 
@@ -63,6 +71,7 @@
    <relation name="obj"> <type name="RWOp"/> <type name="Obj"/> </relation>
    <relation name="tr"> <type name="CV"/> <type name="T"/> </relation>
    <relation name="tr"> <type name="Op"/> <type name="Transaction"/> </relation>
+   <relation name="tw"> <type name="Rd"/> <type name="Transaction"/> </relation>
    <relation name="v"> <type name="CV"/> <type name="V"/> </relation>
    <relation name="v"> <type name="RWOp"/> <type name="V"/> </relation>
 </edge>

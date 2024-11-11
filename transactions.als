@@ -24,11 +24,12 @@ pred multiple_writes {
 pred deps {
     some ww
     some T <: wr
+    some rw
 }
 
 // run runner for 6 // but exactly 2 T
 // run multiple_writes for 6 // but exactly 2 T
-run deps for 6 // but exactly 2 T
+run deps for 8 but exactly 4 T
 
 abstract sig Obj {
     // committed versions
@@ -45,10 +46,14 @@ abstract sig Transaction {
 
 // committed transactions
 sig T extends Transaction {
-    ww : set T,
+    ww : set T, // directly write-depends
+
     iwr : set T, // directly item-read-depends
     pwr : set T, // directly predicate-read-depends
     wr : set T, // directly read-depends
+    irw : set T, // directly item-anti-depends
+    prw : set T, // directly directly predicate-anti-depends
+    rw : set T, // directly anti-depends
 } 
 
 
@@ -99,6 +104,35 @@ sig CV {
     v: V,
     vn: lone CV // next-version
 } 
+
+// object versions
+sig OV {
+    obj : Obj,
+    tr: T,
+    v: V
+}
+
+sig Vset {
+    ovs : set OV
+}
+
+fact "object versions are unique" {
+    no disj ov1, ov2 : OV | {
+        ov1.obj = ov2.obj
+        ov1.tr = ov2.tr
+        ov1.v = ov2.v
+    }
+}
+
+fact "Vsets are complete" {
+    all vset : Vset | 
+        Obj in vset.ovs.obj
+}
+
+fact "only one version per object in a vset" {
+    all vset : Vset | no disj ov1, ov2 : vset.ovs | 
+        ov1.obj = ov2.obj
+}
 
 fact OpStuff {
     all op : Op | {
@@ -276,7 +310,41 @@ fact DirectlyItemReadDepends {
         }
 }
 
+fact DirectlyAntiDepends {
+    rw = irw + prw
+}
+
+// True if transaction T has a read that corresponds to this committed version
+pred reads[t : Transaction, cv: CV] {
+    some rd : t.ops & Rd | rd.sees.installs = cv
+}
+
+
+/*
+Directly item-anti-depends: We say that Tj directly item-anti-depends on
+transaction Ti if Ti reads some object version xk and Tj installs x’s next
+version (after xk ) in the version order. Note that the transaction that wrote
+the later version directly item-anti-depends on the transaction that read the
+earlier version
+*/
+fact DirectlyItemAntiDepends {
+    irreflexive[irw]
+    all disj Ti, Tj : T | Ti->Tj in irw =>
+        some xk : CV | {
+            // Ti reads xk
+            reads[Ti, xk]
+
+            // Tj modifies the next version of xk
+            xk.vn.tr = Tj
+        }
+}
+
 fact DirectlyPredicateReadDepends {
     // TODO: implement this
     no pwr
+}
+
+fact DirectlyPredicateAntiDepends {
+    // TODO implement this
+    no prw
 }
