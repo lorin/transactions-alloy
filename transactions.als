@@ -13,6 +13,8 @@ pred runner {
     some CV
     some cvn
     some ww
+    some P.eval
+    some PRead
 }
 
 pred multiple_writes {
@@ -27,9 +29,9 @@ pred deps {
     some rw
 }
 
-// run runner for 6 // but exactly 2 T
+run runner for 8 // but exactly 2 T
 // run multiple_writes for 6 // but exactly 2 T
-run deps for 8 but exactly 4 T
+// run deps for 8 but exactly 4 T
 
 abstract sig Obj {
     // committed versions
@@ -116,11 +118,34 @@ sig Vset {
     ovs : set OV
 }
 
+sig P {
+    eval : Vset -> set Obj
+}
+
+// Predicate read
+sig PRead extends Op {
+    vset : Vset,
+    p: P,
+    objs : set Obj
+}
+
+fact "predicate read is consistent with predicate" {
+    all pread : PRead | pread.p.eval[pread.vset] = pread.objs
+}
+
 fact "object versions are unique" {
     no disj ov1, ov2 : OV | {
         ov1.obj = ov2.obj
         ov1.tr = ov2.tr
         ov1.v = ov2.v
+    }
+}
+
+fact "object versions must correpsond to a write" {
+    all ov : OV | some wr : Wr | {
+        ov.obj = wr.obj
+        ov.tr = wr.tr
+        ov.v = wr.v
     }
 }
 
@@ -132,6 +157,10 @@ fact "Vsets are complete" {
 fact "only one version per object in a vset" {
     all vset : Vset | no disj ov1, ov2 : vset.ovs | 
         ov1.obj = ov2.obj
+}
+
+fact "Vsets are unique" {
+    no disj vset1, vset2 : Vset | vset1.ovs = vset2.ovs
 }
 
 fact OpStuff {
