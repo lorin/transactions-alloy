@@ -3,6 +3,8 @@ open util/ordering[V] as vo
 
 one sig X,Y extends Obj {}
 
+run {some prw} for 6 but exactly 1 P
+
 
 /*
 G0: Write Cycles. A history H exhibits phenomenon
@@ -89,35 +91,45 @@ pred G2item {
 }
 
 
-assert PL2_99 {
-    not G0
-    not G1
-    not G2item
-}
-
-
-/*
-we define PL-1 as the level in which
-G0 is disallowed
-*/
+/**
+ * We define PL-1 as the level in which G0 is disallowed
+ */
 assert PL1 {
     not G0
 }
 
+
+/**
+ * We define isolation level PL-2 as one in which phenomenon G1 is disallowed
+ */
 assert PL2 {
-    not G1a
-    not G1b
-    not G1c
+    not G1
 }
+
+/*
+ * We define level PL-2.99 as one that proscribes G1 and G2-item
+*/
+assert PL2_99 {
+    not G1
+    not G2item
+}
+
+/*
+* We define PL-3 as an isolation level that proscribes G1 and G2
+*/
+assert PL3 {
+    not G1
+    not G2
+}
+
 
 pred multi_writes[t : Transaction] {
     #(t.ops & Wr) > 1
 }
 
-check PL2_99 for 8 but exactly 0 P, exactly 0 Vset
+// check PL2_99 for 8 but exactly 0 P, exactly 0 Vset
 
-
-
+/*
 run {
     some ww
     some t : T | multi_writes[t]
@@ -126,17 +138,20 @@ run {
     #{cv : CV | cv.obj=X} > 1
     #{cv : CV | cv.obj=Y} > 1
 } for 9 but exactly 4 T, exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset, exactly 4 CV
+*/
 
 
 // multiple installs
 // NOTE: this is the thing that currently isn't working
+/*
 run {
     some t : T | #(t.ops & Wr) > 1
-    some t : T | #(t.ops.installs) > 1
+    some t : T | #(t.installs) > 1
     // Writes to multiple objects
     // some t : T, disj w1, w2 : (t.ops & Wr) | no w1.obj & w2.obj
 
 } for 8 but exactly 1 T, exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset
+*/
 
 
 pred runner {
@@ -184,6 +199,8 @@ abstract sig Transaction {
 
 // committed transactions
 sig T extends Transaction {
+    installs : set CV,
+
     ww : set T, // directly write-depends
 
     iwr : set T, // directly item-read-depends
@@ -258,6 +275,10 @@ sig PRead extends Op {
     vset : Vset,
     p: P,
     vs : set CV
+}
+
+fact {
+    all t: T | t.installs = t.ops.installs
 }
 
 fact "predicate eval must match a subset of vset" {
@@ -465,7 +486,7 @@ fact DirectlyWriteDepends {
     irreflexive[ww]
 
     all disj Ti, Tj : T | Ti->Tj in ww <=>
-        some cv1 : Ti.ops.installs, cv2 : Tj.ops.installs | {
+        some cv1 : Ti.installs, cv2 : Tj.installs | {
             cv1.obj = cv2.obj
             cv1.tr = Ti
             cv2.tr = Tj
@@ -484,7 +505,7 @@ fact DirectlyItemReadDepends {
     irreflexive[iwr]
 
     all disj Ti, Tj : T | Ti->Tj in iwr =>
-        some cv : Ti.ops.installs, rd : Rd & Tj.ops {
+        some cv : Ti.installs, rd : Rd & Tj.ops {
             rd.sees = cv.wo
         }
 }
@@ -546,15 +567,30 @@ Directly predicate-read-depends:
 Transaction Tj directly predicate-read-depends on Ti if Tj performs an operation rj (P: Vset(P)),
 xk ∈ Vset(P), i = k or xi << xk, and xi changes the matches of rj (P: Vset(P)).
 */
-fact "Directly predicate-read-depends" {
+fact DirectlyPredicateReadDepends {
     all disj Ti, Tj : T |
-        Ti->Tj in pwr <=> some rj : PRead & Tj.ops, xi : Ti.ops.installs, xk : rj.vset.vs | {
+        Ti->Tj in pwr <=> some rj : PRead & Tj.ops, xi : Ti.installs, xk : rj.vset.vs | {
             (xi=xk) or lt[xi, xk]
             changes_the_matches_of[xi, rj]
         }
 }
+/*
 
+Directly predicate-anti-depends: 
+
+We say that Tj directly predicate-anti-depends on Ti if Tj overwrites an
+operation ri (P: Vset(P)), i.e., 
+
+Tj installs a later version of some object that changes the matches of a predicate-based read performed by Ti
+
+*/
 fact DirectlyPredicateAntiDepends {
-    // TODO implement this
-    no prw
+    all disj Ti, Tj : T | 
+        Ti->Tj in prw <=> some ri : PRead & Ti.ops, xj : Tj.installs | 
+            changes_the_matches_of[xj, ri]
 }
+
+fact "DSG is irreflexive" {
+    irreflexive[DSG]
+}
+
