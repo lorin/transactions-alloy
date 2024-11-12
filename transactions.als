@@ -361,7 +361,7 @@ fact {
 // It preserves the order of all events within a transaction
 // including the commit and abort events
 fact {
-    tn in eo
+    tn in k
 }
 
 // all operations in a transaction are reachable from some first operation
@@ -533,9 +533,18 @@ fact DirectlyItemAntiDepends {
         }
 }
 
-fact DirectlyPredicateReadDepends {
-    // TODO: implement this
-    no pwr
+/*
+Directly predicate-read-depends: 
+
+Transaction Tj directly predicate-read-depends on Ti if Tj performs an operation rj (P: Vset(P)),
+xk ∈ Vset(P), i = k or xi << xk, and xi changes the matches of rj (P: Vset(P)).
+*/
+fact "Directly predicate-read-depends" {
+    all disj Ti, Tj : T |
+        Ti->Tj in pwr <=> some pr : PRead & Tj, xi : Ti.ops & Wr, xk : pr.vset.ovs | {
+            (xk.tr = ti or ..?
+
+        }
 }
 
 fact DirectlyPredicateAntiDepends {
