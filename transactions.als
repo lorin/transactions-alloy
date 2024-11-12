@@ -30,7 +30,7 @@ pred G1a {
 
 
 /*
-G1b: Intermediate Reads. 
+G1b: Intermediate Reads.
 
 A history H shows phenomenon G1b if it contains a committed transaction
 T2 that has read a version of object x written by transaction T1 that was not T1’s
@@ -114,7 +114,7 @@ pred multi_writes[t : Transaction] {
     #(t.ops & Wr) > 1
 }
 
-check PL2_99 for 8 but exactly 0 P, exactly 0 Vset, exactly 0 OV
+check PL2_99 for 8 but exactly 0 P, exactly 0 Vset
 
 
 
@@ -125,7 +125,7 @@ run {
     // multiple CVs for both X and Y
     #{cv : CV | cv.obj=X} > 1
     #{cv : CV | cv.obj=Y} > 1
-} for 9 but exactly 4 T, exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset, exactly 0 OV, exactly 4 CV
+} for 9 but exactly 4 T, exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset, exactly 4 CV
 
 
 // multiple installs
@@ -136,7 +136,7 @@ run {
     // Writes to multiple objects
     // some t : T, disj w1, w2 : (t.ops & Wr) | no w1.obj & w2.obj
 
-} for 8 but exactly 1 T, exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset, exactly 0 OV
+} for 8 but exactly 1 T, exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset
 
 
 pred runner {
@@ -192,11 +192,11 @@ sig T extends Transaction {
     irw : set T, // directly item-anti-depends
     prw : set T, // directly directly predicate-anti-depends
     rw : set T, // directly anti-depends
-} 
+}
 
 
 // aborted transactions
-sig A extends Transaction {} 
+sig A extends Transaction {}
 
 // Operations, also known as Events
 abstract sig Op {
@@ -229,7 +229,7 @@ pred first_write_of_obj[wr : Wr] {
 sig Rd extends RWOp {
     tw: Transaction,  // transaction that did the write
     sees: Wr // operation that did the write
-} 
+}
 
 // versions
 sig V {}
@@ -241,64 +241,50 @@ sig CV {
     wo: Wr, // write operation
     v: V,
     vn: lone CV // next-version
-} 
-
-// object versions
-sig OV {
-    obj : Obj,
-    tr: T,
-    v: V
 }
 
+
 sig Vset {
-    ovs : set OV
+    vs : set CV
 }
 
 sig P {
-    eval : Vset -> set Obj
+    eval : Vset -> set CV,
+    matches : set CV
 }
 
 // Predicate read
 sig PRead extends Op {
     vset : Vset,
     p: P,
-    objs : set Obj
+    vs : set CV
 }
 
+fact "predicate eval must match a subset of vset" {
+    all p : P, vset : Vset | p.eval[vset] in vset.vs
+}
+
+fact "eval is based on matches" {
+    all p: P, vset : Vset, v : vset.vs |
+        v in p.matches <=> v in p.eval[vset]
+}
 
 fact "predicate read is consistent with predicate" {
-    all pread : PRead | pread.p.eval[pread.vset] = pread.objs
+    all pread : PRead | pread.p.eval[pread.vset] = pread.vs
 }
-
-fact "object versions are unique" {
-    no disj ov1, ov2 : OV | {
-        ov1.obj = ov2.obj
-        ov1.tr = ov2.tr
-        ov1.v = ov2.v
-    }
-}
-
-fact "object versions must correpsond to a write" {
-    all ov : OV | some wr : Wr | {
-        ov.obj = wr.obj
-        ov.tr = wr.tr
-        ov.v = wr.v
-    }
-}
-
 
 fact "Vsets are complete" {
-    all vset : Vset | 
-        Obj in vset.ovs.obj
+    all vset : Vset |
+        Obj in vset.vs.obj
 }
 
 fact "only one version per object in a vset" {
-    all vset : Vset | no disj ov1, ov2 : vset.ovs | 
-        ov1.obj = ov2.obj
+    all vset : Vset | no disj v1, v2 : vset.vs |
+        v1.obj = v2.obj
 }
 
 fact "Vsets are unique" {
-    no disj vset1, vset2 : Vset | vset1.ovs = vset2.ovs
+    no disj vset1, vset2 : Vset | vset1.vs = vset2.vs
 }
 
 fact OpStuff {
@@ -361,7 +347,7 @@ fact {
 // It preserves the order of all events within a transaction
 // including the commit and abort events
 fact {
-    tn in k
+    tn in eo
 }
 
 // all operations in a transaction are reachable from some first operation
@@ -394,10 +380,10 @@ fact "installed version is always last write for that object" {
 
 
 fact "if a read sees a write in the same transaction, it must be the most recent one" {
-    all t : Transaction, rd : t.ops & Rd | 
+    all t : Transaction, rd : t.ops & Rd |
         (rd.sees in t.ops) => no wr : t.ops & Wr | {
             rd.obj = wr.obj
-            // wr is before rd 
+            // wr is before rd
             wr in rd.^~tn
 
             // wr is after the seen write (rd.sees)
@@ -478,7 +464,7 @@ fact "CV-next relation" {
 fact DirectlyWriteDepends {
     irreflexive[ww]
 
-    all disj Ti, Tj : T | Ti->Tj in ww <=> 
+    all disj Ti, Tj : T | Ti->Tj in ww <=>
         some cv1 : Ti.ops.installs, cv2 : Tj.ops.installs | {
             cv1.obj = cv2.obj
             cv1.tr = Ti
@@ -497,7 +483,7 @@ fact DirectlyReadDepends {
 fact DirectlyItemReadDepends {
     irreflexive[iwr]
 
-    all disj Ti, Tj : T | Ti->Tj in iwr => 
+    all disj Ti, Tj : T | Ti->Tj in iwr =>
         some cv : Ti.ops.installs, rd : Rd & Tj.ops {
             rd.sees = cv.wo
         }
@@ -520,7 +506,7 @@ pred reads[t : Transaction, cv: CV] {
 // version (after xk ) in the version order. Note that the transaction that wrote
 // the later version directly item-anti-depends on the transaction that read the
 // earlier version
-// 
+//
 fact DirectlyItemAntiDepends {
     irreflexive[irw]
     all disj Ti, Tj : T | Ti->Tj in irw <=>
@@ -534,16 +520,37 @@ fact DirectlyItemAntiDepends {
 }
 
 /*
-Directly predicate-read-depends: 
+Definition 2 : Change the Matches of a Predicate-Based
+Read.
+
+We say that a transaction Ti changes the matches of a predicate-based read rj
+(P: Vset(P)) if
+ - Ti installs xi,
+ - xh immediately precedes xi in the version order,and
+ - xh matches P whereas xi does not or vice-versa.
+
+ In this case, we also say that xi changes the matches of the predicate-based read.
+*/
+pred changes_the_matches_of[xi : CV, rj : PRead] {
+    some xh : vn.xi  |
+        let m=rj.p.matches |
+            (xh in m and xi not in m) or (xh not in m and xi in m)
+}
+
+pred lt[Xi: CV, Xk: CV] {
+    Xi->Xk in ^vn
+}
+/*
+Directly predicate-read-depends:
 
 Transaction Tj directly predicate-read-depends on Ti if Tj performs an operation rj (P: Vset(P)),
 xk ∈ Vset(P), i = k or xi << xk, and xi changes the matches of rj (P: Vset(P)).
 */
 fact "Directly predicate-read-depends" {
     all disj Ti, Tj : T |
-        Ti->Tj in pwr <=> some pr : PRead & Tj, xi : Ti.ops & Wr, xk : pr.vset.ovs | {
-            (xk.tr = ti or ..?
-
+        Ti->Tj in pwr <=> some rj : PRead & Tj.ops, xi : Ti.ops.installs, xk : rj.vset.vs | {
+            (xi=xk) or lt[xi, xk]
+            changes_the_matches_of[xi, rj]
         }
 }
 
