@@ -5,12 +5,42 @@ one sig X,Y extends Obj {}
 
 run {some prw} for 6 but exactly 1 P
 
+/**
+ * We define PL-1 as the level in which G0 is disallowed
+ */
+assert PL1 {
+    not G0
+}
+
+/**
+ * We define isolation level PL-2 as one in which phenomenon G1 is disallowed
+ */
+assert PL2 {
+    not G1
+}
 
 /*
-G0: Write Cycles. A history H exhibits phenomenon
-G0 if DSG(H) contains a directed cycle consisting
-entirely of write-dependency edges.
+ * We define level PL-2.99 as one that proscribes G1 and G2-item
 */
+assert PL2_99 {
+    not G1
+    not G2item
+}
+
+/*
+* We define PL-3 as an isolation level that proscribes G1 and G2
+*/
+assert PL3 {
+    not G1
+    not G2
+}
+
+
+/**
+ * G0: Write Cycles. A history H exhibits phenomenon
+ * G0 if DSG(H) contains a directed cycle consisting
+ * entirely of write-dependency edges.
+ */
 pred G0 {
     some iden & ^ww
 }
@@ -91,37 +121,6 @@ pred G2item {
 }
 
 
-/**
- * We define PL-1 as the level in which G0 is disallowed
- */
-assert PL1 {
-    not G0
-}
-
-
-/**
- * We define isolation level PL-2 as one in which phenomenon G1 is disallowed
- */
-assert PL2 {
-    not G1
-}
-
-/*
- * We define level PL-2.99 as one that proscribes G1 and G2-item
-*/
-assert PL2_99 {
-    not G1
-    not G2item
-}
-
-/*
-* We define PL-3 as an isolation level that proscribes G1 and G2
-*/
-assert PL3 {
-    not G1
-    not G2
-}
-
 
 pred multi_writes[t : Transaction] {
     #(t.ops & Wr) > 1
@@ -164,7 +163,6 @@ pred runner {
     some CV
     some cvn
     some ww
-    some P.eval
     some PRead
 }
 
@@ -266,7 +264,6 @@ sig Vset {
 }
 
 sig P {
-    eval : Vset -> set CV,
     matches : set CV
 }
 
@@ -281,17 +278,9 @@ fact {
     all t: T | t.installs = t.ops.installs
 }
 
-fact "predicate eval must match a subset of vset" {
-    all p : P, vset : Vset | p.eval[vset] in vset.vs
-}
-
-fact "eval is based on matches" {
-    all p: P, vset : Vset, v : vset.vs |
-        v in p.matches <=> v in p.eval[vset]
-}
 
 fact "predicate read is consistent with predicate" {
-    all pread : PRead | pread.p.eval[pread.vset] = pread.vs
+    all pread : PRead | pread.vs = pread.vset.vs & pread.p.matches
 }
 
 fact "Vsets are complete" {
@@ -568,6 +557,9 @@ Transaction Tj directly predicate-read-depends on Ti if Tj performs an operation
 xk ∈ Vset(P), i = k or xi << xk, and xi changes the matches of rj (P: Vset(P)).
 */
 fact DirectlyPredicateReadDepends {
+
+    irreflexive[pwr]
+
     all disj Ti, Tj : T |
         Ti->Tj in pwr <=> some rj : PRead & Tj.ops, xi : Ti.installs, xk : rj.vset.vs | {
             (xi=xk) or lt[xi, xk]
@@ -585,12 +577,10 @@ Tj installs a later version of some object that changes the matches of a predica
 
 */
 fact DirectlyPredicateAntiDepends {
+
+    irreflexive[prw]
+
     all disj Ti, Tj : T | 
         Ti->Tj in prw <=> some ri : PRead & Ti.ops, xj : Tj.installs | 
             changes_the_matches_of[xj, ri]
 }
-
-fact "DSG is irreflexive" {
-    irreflexive[DSG]
-}
-
