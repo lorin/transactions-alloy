@@ -1,5 +1,5 @@
 open util/relation
-open util/ordering[V] as vo
+open util/ordering[N] as vo
 
 one sig X,Y extends Obj {}
 
@@ -120,74 +120,12 @@ pred G2item {
     no iden & ^(DSG - irw)
 }
 
-
-
-pred multi_writes[t : Transaction] {
-    #(t.ops & Wr) > 1
-}
-
-// check PL2_99 for 8 but exactly 0 P, exactly 0 Vset
-
-/*
-run {
-    some ww
-    some t : T | multi_writes[t]
-    X+Y in Wr.obj
-    // multiple CVs for both X and Y
-    #{cv : CV | cv.obj=X} > 1
-    #{cv : CV | cv.obj=Y} > 1
-} for 9 but exactly 4 T, exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset, exactly 4 CV
-*/
-
-
-// multiple installs
-// NOTE: this is the thing that currently isn't working
-/*
-run {
-    some t : T | #(t.ops & Wr) > 1
-    some t : T | #(t.installs) > 1
-    // Writes to multiple objects
-    // some t : T, disj w1, w2 : (t.ops & Wr) | no w1.obj & w2.obj
-
-} for 8 but exactly 1 T, exactly 0 A, exactly 0 P, exactly 0 Rd, exactly 0 Vset
-*/
-
-
-pred runner {
-    // no Abort
-    // some eo
-    // some cvn
-    // some CV
-    no A
-    some Rd
-    some CV
-    some cvn
-    some ww
-    some PRead
-}
-
-pred multiple_writes {
-    no A
-    one T
-    #Wr > 1
-}
-
-pred deps {
-    some ww
-    some T <: wr
-    some rw
-}
-
-// run runner for 8 // but exactly 2 T
-// run multiple_writes for 6 // but exactly 2 T
-// run deps for 8 but exactly 4 T
-
 abstract sig Obj {
     // committed versions
-    cvs : set CV,
+    vs : set V,
 
     // "next" relation of committed versions
-    cvn : CV lone -> lone CV
+    cvn : V lone -> lone V
 }
 
 // transactions
@@ -197,7 +135,7 @@ abstract sig Transaction {
 
 // committed transactions
 sig T extends Transaction {
-    installs : set CV,
+    installs : set V,
 
     ww : set T, // directly write-depends
 
@@ -227,12 +165,12 @@ sig Abort extends Op {}
 // read-write operations
 abstract sig RWOp extends Op {
     obj: Obj,
-    v: V
+    i: N
 }
 
 // writes
 sig Wr extends RWOp {
-    installs : lone CV
+    installs : lone V
 }
 
 
@@ -246,32 +184,32 @@ sig Rd extends RWOp {
     sees: Wr // operation that did the write
 }
 
-// versions
-sig V {}
+// version numbers
+sig N {}
 
-// committed versions
-sig CV {
+// installed (committed) versions
+sig V {
     obj: Obj,
     tr: T,
     wo: Wr, // write operation
-    v: V,
-    vn: lone CV // next-version
+    i: N,
+    vn: lone V // next-version
 }
 
 
 sig Vset {
-    vs : set CV
+    vs : set V
 }
 
 sig P {
-    matches : set CV
+    matches : set V
 }
 
 // Predicate read
 sig PRead extends Op {
     vset : Vset,
     p: P,
-    vs : set CV
+    vs : set V
 }
 
 fact {
@@ -409,19 +347,19 @@ fact OpStuff {
 }
 
 fact "committed versions are associated with the object" {
-    all o : Obj | o.cvs.obj in o
+    all o : Obj | o.vs.obj in o
 }
 
 fact "cvn relations must be associated with the object" {
     all o : Obj |  {
-        no o.cvn.CV.obj - o
-        no o.cvn[CV].obj - o
+        no o.cvn.V.obj - o
+        no o.cvn[V].obj - o
     }
 }
 
 fact "initial write of an object is the first version" {
     all t : Transaction, wr : t.ops & Wr |
-        first_write_of_obj[wr] => wr.v = vo/first
+        first_write_of_obj[wr] => wr.i = vo/first
 }
 
 fact "next writes are always successive versions" {
@@ -432,13 +370,13 @@ fact "next writes are always successive versions" {
             w1.obj = w3.obj
             w1->w3 in ^tn
             w3->w2 in ^tn
-        }} => w2.v = next[w1.v]
+        }} => w2.i = next[w1.i]
 }
 
 
 fact RdSees {
     all rd : Rd |  {
-        rd.v = rd.sees.v // version read is same as verion written
+        rd.i = rd.sees.i // version read is same as verion written
         rd.obj = rd.sees.obj // object read is same as object written
         rd.sees.tr = rd.tw // seen write op belongs to transaction that does the write
     }
@@ -447,25 +385,25 @@ fact RdSees {
 
 
 fact CommittedVersions {
-    all cv : CV |  {
-        cv in cv.obj.cvs
-        cv.wo.v = cv.v
-        cv.wo in cv.tr.ops
-        cv.wo.obj = cv.obj
+    all v : V |  {
+        v in v.obj.vs
+        v.wo.i = v.i
+        v.wo in v.tr.ops
+        v.wo.obj = v.obj
     }
 }
 
 
 fact "transaction can only commit one version" {
     all obj : Obj |
-        no disj cv1, cv2 : obj.cvs |
+        no disj cv1, cv2 : obj.vs |
             cv1.tr = cv2.tr
 }
 
 fact "CV-next relation" {
     all o : Obj | {
         irreflexive[o.cvn]
-        totalOrder[*(o.cvn), o.cvs]
+        totalOrder[*(o.cvn), o.vs]
     }
 }
 
@@ -505,8 +443,8 @@ fact DirectlyAntiDepends {
 }
 
 // True if transaction T has a read that corresponds to this committed version
-pred reads[t : Transaction, cv: CV] {
-    some rd : t.ops & Rd | rd.sees.installs = cv
+pred reads[t : Transaction, v: V] {
+    some rd : t.ops & Rd | rd.sees.installs = v
 }
 
 
@@ -520,7 +458,7 @@ pred reads[t : Transaction, cv: CV] {
 fact DirectlyItemAntiDepends {
     irreflexive[irw]
     all disj Ti, Tj : T | Ti->Tj in irw <=>
-        some xk : CV | {
+        some xk : V | {
             // Ti reads xk
             reads[Ti, xk]
 
@@ -541,21 +479,21 @@ We say that a transaction Ti changes the matches of a predicate-based read rj
 
  In this case, we also say that xi changes the matches of the predicate-based read.
 */
-pred changes_the_matches_of[xi : CV, rj : PRead] {
+pred changes_the_matches_of[xi : V, rj : PRead] {
     some xh : vn.xi  |
         let m=rj.p.matches |
             (xh in m and xi not in m) or (xh not in m and xi in m)
 }
 
-pred lt[Xi: CV, Xk: CV] {
+pred lt[Xi: V, Xk: V] {
     Xi->Xk in ^vn
 }
-/*
-Directly predicate-read-depends:
-
-Transaction Tj directly predicate-read-depends on Ti if Tj performs an operation rj (P: Vset(P)),
-xk ∈ Vset(P), i = k or xi << xk, and xi changes the matches of rj (P: Vset(P)).
-*/
+/**
+ * Directly predicate-read-depends:
+ * 
+ * Transaction Tj directly predicate-read-depends on Ti if Tj performs an operation rj (P: Vset(P)),
+ * xk ∈ Vset(P), i = k or xi << xk, and xi changes the matches of rj (P: Vset(P)).
+ */
 fact DirectlyPredicateReadDepends {
 
     irreflexive[pwr]
