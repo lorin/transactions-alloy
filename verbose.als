@@ -4,7 +4,7 @@ open util/ordering[WriteNumber] as wo
 
 run {
 
-} for 5 but exactly 1 Transaction, exactly 1 Object, exactly 3 Write
+} for 5 but exactly 2 Transaction, exactly 1 Object, exactly 3 Write
 
 sig Object {}
 
@@ -221,9 +221,19 @@ pred G2item {
 
 // operations
 
-fact "Event.next relation is irreflexive" {
+fact "enext relation" {
     irreflexive[enext]
+
+    all T : Transaction, disj e1, e2 : events[T] |  {
+        e1->e2 in enext <=> {
+            e1->e2 in eo
+            no e3 : events[T] - (e1 + e2) | (e1->e3 + e3->e2) in eo
+        }
+    }
+    
 }
+
+
 
 fact "write number is consistent with execution order" {
     all T : Transaction, disj w1, w2 : events[T] & Write | 
@@ -235,7 +245,7 @@ fact "first write is first write number" {
         no w.^~enext => w.wn = first
 }
 
-fact "ith goes up one at a time" {
+fact "write number goes up one at a time" {
     all T : Transaction, w1, w2 : events[T] & Write | ({
         w1.obj = w2.obj
         w1 -> w2 in eo
