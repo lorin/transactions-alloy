@@ -4,75 +4,43 @@ open util/ordering[WriteNumber] as wo
 
 run {
 
-} for 5 but exactly 1 Transaction, exactly 1 Object, exactly 3 Write
+} for 5 but exactly 1 Transaction, exactly 2 Object, exactly 3 Write
 
-sig Object {}
 
-abstract sig Transaction {}
+//
+//
+// Phenomena
+//
+//
 
-sig CommittedTransaction extends Transaction {
-    ww : set CommittedTransaction, // directly write-depends
-
-    iwr : set CommittedTransaction, // directly item-read-depends
-    pwr : set CommittedTransaction, // directly predicate-read-depends
-    wr : set CommittedTransaction, // directly read-depends
-    irw : set CommittedTransaction, // directly item-anti-depends
-    prw : set CommittedTransaction, // directly directly predicate-anti-depends
-    rw : set CommittedTransaction, // directly anti-depends
+/**
+ * G0: Write Cycles. A history H exhibits phenomenon
+ * G0 if DSG(H) contains a directed cycle consisting
+ * entirely of write-dependency edges.
+ */
+pred G0 {
+    not acyclic[ww, CommittedTransaction]
 }
 
-sig AbortedTransaction extends Transaction {}
-
-
-abstract sig Event {
-    tr: Transaction,
-    eo: set Event, // event order (partial ordering of events)
-    enext: lone Event // next event in the transaction
+/**
+ * Phenomenon G1 captures the essence of no-dirty-reads
+ * and is comprised of G1a, G1b and G1c. 
+ */
+pred G1 {
+    G1a or G1b or G1c
 }
 
-sig Commit extends Event {}
-
-sig Abort extends Event {}
-
-abstract sig ReadWriteEvent extends Event {
-    obj: Object,
-    v: Version
-}
-sig Write extends ReadWriteEvent {
-    wn : WriteNumber,
-    installs : lone Version
+/**
+ * G1a: Aborted Reads
+ * 
+ * A history H shows phenomenon G1a if it contains an aborted transaction T1 and a
+ * committed transaction T2 such that T2 has read some object modified by T1
+ * 
+ */
+pred G1a {
+    some T1 : AbortedTransaction, T2 : CommittedTransaction, r : events[T2] & Read, w : events[T1] & Write | r.sees = w
 }
 
-sig Read extends ReadWriteEvent {
-    tw: Transaction,  // transaction that did the write
-    sees: Write // operation that did the write
-}
-
-sig VersionNumber {}
-
-sig WriteNumber {}
-
-// installed (committed) versions
-sig Version {
-    obj: Object,
-    tr: CommittedTransaction,
-    wo: Write,
-    vn: VersionNumber,
-}
-
-sig Vset {
-    vs : set Version
-}
-
-sig Predicate {
-    matches : set Version
-}
-
-sig PredicateRead extends Event {
-    vset : Vset,
-    p: Predicate,
-    vs : set Version
-}
 
 //
 //
@@ -111,40 +79,87 @@ assert PL3 {
     not G2
 }
 
-
-//
-//
-// Phenomena
-//
-//
-
-
-/**
- * G0: Write Cycles. A history H exhibits phenomenon
- * G0 if DSG(H) contains a directed cycle consisting
- * entirely of write-dependency edges.
- */
-pred G0 {
-    not acyclic[ww, CommittedTransaction]
+fun installs[T : Transaction] : set Version {
+    Version <: tr.T
 }
 
-/**
- * Phenomenon G1 captures the essence of no-dirty-reads
- * and is comprised of G1a, G1b and G1c. 
- */
-pred G1 {
-    G1a or G1b or G1c
+
+// Directly write-depends
+fun ww[] : CommittedTransaction -> CommittedTransaction {
+    { disj Ti, Tj : CommittedTransaction | some v1 : Ti.installs, v2 : Tj.installs | {
+        v1.obj = v2.obj
+        v1.tr = Ti
+        v2.tr = Tj
+        v1.next = v2
+        }
+    } 
 }
 
-/**
- * G1a: Aborted Reads
- * 
- * A history H shows phenomenon G1a if it contains an aborted transaction T1 and a
- * committed transaction T2 such that T2 has read some object modified by T1
- * 
- */
-pred G1a {
-    some T1 : AbortedTransaction, T2 : CommittedTransaction, r : events[T2] & Read, w : events[T1] & Write | r.sees = w
+
+sig Object {}
+
+abstract sig Transaction {}
+
+abstract sig CommittedTransaction extends Transaction {
+    iwr : set CommittedTransaction, // directly item-read-depends
+    pwr : set CommittedTransaction, // directly predicate-read-depends
+    wr : set CommittedTransaction, // directly read-depends
+    irw : set CommittedTransaction, // directly item-anti-depends
+    prw : set CommittedTransaction, // directly directly predicate-anti-depends
+    rw : set CommittedTransaction, // directly anti-depends
+}
+
+sig T extends CommittedTransaction {}
+
+sig AbortedTransaction extends Transaction {}
+
+
+abstract sig Event {
+    tr: Transaction,
+    eo: set Event, // event order (partial ordering of events)
+    enext: lone Event // next event in the transaction
+}
+
+sig Commit extends Event {}
+
+sig Abort extends Event {}
+
+abstract sig ReadWriteEvent extends Event {
+    obj: Object,
+    v: Version
+}
+sig Write extends ReadWriteEvent {
+    wn : WriteNumber,
+    installs : lone Version
+}
+
+sig Read extends ReadWriteEvent {
+    sees: Write // operation that did the write
+}
+
+sig VersionNumber {}
+
+sig WriteNumber {}
+
+// installed (committed) versions
+sig Version {
+    obj: Object,
+    tr: CommittedTransaction,
+    vn: VersionNumber,
+}
+
+sig Vset {
+    vs : set Version
+}
+
+sig Predicate {
+    matches : set Version
+}
+
+sig PredicateRead extends Event {
+    vset : Vset,
+    p: Predicate,
+    vs : set Version
 }
 
 fun events[t : Transaction] : set Event {
@@ -171,6 +186,7 @@ pred G1b {
     }
 }
 
+
 /**
  * G1c: Circular Information Flow.
  * 
@@ -184,6 +200,8 @@ pred G1c {
 fun DSG[] : CommittedTransaction -> CommittedTransaction {
     ww + wr + rw
 }
+
+
 
 /**
  * G2: Anti-dependency Cycles. A history H exhibits
