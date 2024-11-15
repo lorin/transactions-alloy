@@ -15,8 +15,6 @@ abstract sig Transaction {
 }
 
 sig CommittedTransaction extends Transaction {
-    installs : set Version,
-
     ww : set CommittedTransaction, // directly write-depends
 
     iwr : set CommittedTransaction, // directly item-read-depends
@@ -26,6 +24,9 @@ sig CommittedTransaction extends Transaction {
     prw : set CommittedTransaction, // directly directly predicate-anti-depends
     rw : set CommittedTransaction, // directly anti-depends
 }
+
+
+
 
 sig AbortedTransaction extends Transaction {}
 
@@ -309,11 +310,6 @@ fact "committed transactions contain a commit" {
 
 fact "aborted transactions contain an abort" {
     all t : AbortedTransaction | some Abort & t.events
-}
-
-
-fact installs {
-    all t: CommittedTransaction | t.installs = t.events.installs
 }
 
 // predicate reads
