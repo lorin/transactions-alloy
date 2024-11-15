@@ -163,14 +163,40 @@ pred changes_the_matches_of[xi : Version, rj: PredicateRead] {
     }
 }
 
+// Directly anti-depends
+fun rw[]: CommittedTransaction -> CommittedTransaction {
+    irw + prw
+}
+
+fun next_version[v : Version] : lone Version {
+    {w : Version | {
+        w.obj = v.obj
+        w.vn = vo/next[v.vn]
+    }}
+}
+
+
+// Directly item-anti-depends: We say that Tj directly item-anti-depends on
+// transaction Ti if Ti reads some object version xk and Tj installs x’s next
+// version (after xk ) in the version order. Note that the transaction that wrote
+// the later version directly item-anti-depends on the transaction that read the
+// earlier version
+fun irw[]: CommittedTransaction -> CommittedTransaction {
+    {disj Ti, Tj : CommittedTransaction | 
+        some xk, xl : Version  |  {
+            Ti.reads[xk]
+            xl = xk.next_version
+            some xl & Tj.installs
+        }
+    }
+}
+
 sig Object {}
 
 abstract sig Transaction {}
 
 abstract sig CommittedTransaction extends Transaction {
-    irw : set CommittedTransaction, // directly item-anti-depends
     prw : set CommittedTransaction, // directly directly predicate-anti-depends
-    rw : set CommittedTransaction, // directly anti-depends
 }
 
 sig T extends CommittedTransaction {}
