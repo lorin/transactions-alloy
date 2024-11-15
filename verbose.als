@@ -7,9 +7,7 @@ run {
 
 sig Object {}
 
-abstract sig Transaction {
-    events : set Event
-}
+abstract sig Transaction {}
 
 sig CommittedTransaction extends Transaction {
     ww : set CommittedTransaction, // directly write-depends
@@ -147,6 +145,10 @@ pred G1a {
     some T1 : AbortedTransaction, T2 : CommittedTransaction, r : T2.events & Read, w : T1.events & Write | r.sees = w
 }
 
+fun events[t : Transaction] : set Event {
+    (Event <: tr).t
+}
+
 
 /**
  * G1b: Intermediate Reads.
@@ -218,10 +220,6 @@ pred G2item {
 
 fact "every op is in the set of operations of the transaction it is associated with" {
     all op : Event | op in op.tr.events
-}
-
-fact "every op is associated with exactly one transaction" {
-    all op : Event | one ~events[op]
 }
 
 fact "Event.next relation is irreflexive" {
