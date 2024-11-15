@@ -1,5 +1,6 @@
 open util/relation
 open util/ordering[VersionNumber] as vo
+open util/ordering[WriteNumber] as wo
 
 run {
 
@@ -26,7 +27,7 @@ sig AbortedTransaction extends Transaction {}
 abstract sig Event {
     tr: Transaction,
     eo: set Event, // event order (partial ordering of events)
-    next: lone Event // next operation in the transaction
+    enext: lone Event // next event in the transaction
 }
 
 sig Commit extends Event {}
@@ -38,7 +39,7 @@ abstract sig ReadWriteEvent extends Event {
     v: Version
 }
 sig Write extends ReadWriteEvent {
-    ith : VersionNumber,  // which write this is
+    wn : WriteNumber,
     installs : lone Version
 }
 
@@ -48,6 +49,8 @@ sig Read extends ReadWriteEvent {
 }
 
 sig VersionNumber {}
+
+sig WriteNumber {}
 
 // installed (committed) versions
 sig Version {
@@ -142,7 +145,7 @@ pred G1 {
  * 
  */
 pred G1a {
-    some T1 : AbortedTransaction, T2 : CommittedTransaction, r : T2.events & Read, w : T1.events & Write | r.sees = w
+    some T1 : AbortedTransaction, T2 : CommittedTransaction, r : events[T2] & Read, w : events[T1] & Write | r.sees = w
 }
 
 fun events[t : Transaction] : set Event {
@@ -158,11 +161,11 @@ fun events[t : Transaction] : set Event {
  * final modification of x.
 */
 pred G1b {
-    some T1 : Transaction, T2 : CommittedTransaction, r : T2.events & Read | let x = r.obj, wi=r.sees |
+    some T1 : Transaction, T2 : CommittedTransaction, r : events[T2] & Read | let x = r.obj, wi=r.sees |
     {
         no T1 & T2 // different transactions
         wi.tr = T1
-        some wj : (T1.events - wi) & Write | {
+        some wj : (events[T1] - wi) & Write | {
             wj.obj = x
             wi->wj in eo
         }
@@ -218,30 +221,26 @@ pred G2item {
 
 // operations
 
-fact "every op is in the set of operations of the transaction it is associated with" {
-    all op : Event | op in op.tr.events
-}
-
 fact "Event.next relation is irreflexive" {
-    irreflexive[this/Event <: next]
+    irreflexive[enext]
 }
 
-fact "ith relationship is consistent with eo" {
-    all T : Transaction, disj w1, w2 : T.events & Write | 
-        lt[w1.ith, w2.ith] <=> w1 -> w2 in eo
+fact "write number is consistent with execution order" {
+    all T : Transaction, disj w1, w2 : events[T] & Write | 
+        lt[w1.wn, w2.wn] <=> w1 -> w2 in eo
 }
 
-fact "first write is first ith" {
-    all T : Transaction, w : T.events & Write |
-        no w.^~next => w.ith = first
+fact "first write is first write number" {
+    all T : Transaction, w : events[T] & Write |
+        no w.^~enext => w.wn = first
 }
 
 fact "ith goes up one at a time" {
-    all T : Transaction, w1, w2 : T.events & Write | ({
+    all T : Transaction, w1, w2 : events[T] & Write | ({
         w1.obj = w2.obj
         w1 -> w2 in eo
-        no w3 : T.events & Write | w3.obj=w1.obj and (w1->w3 + w3->w2) in eo
-    } => w1.ith.next = w2.ith)
+        no w3 : events[T] & Write | w3.obj=w1.obj and (w1->w3 + w3->w2) in eo
+    } => w1.wn.next = w2.wn)
 }
 
 /**
@@ -253,11 +252,11 @@ fact "Event order (eo) is a partial order on operations" {
 }
 
 fact "eo preserves the order of all events within a transaction including the commit and abort events" {
-    (this/Event <: next) in eo
+    enext in eo
 }
 
 fact "all events within a transaction are totally ordered" {
-    all T : Transaction | totalOrder[eo, T.events]
+    all T : Transaction | totalOrder[eo, events[T]]
 }
 
 fact "If an event rj (xi:m) exists in E, it is preceded by wi (xi:m) in E" {
