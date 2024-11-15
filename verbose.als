@@ -95,15 +95,42 @@ fun ww[] : CommittedTransaction -> CommittedTransaction {
     } 
 }
 
+// Directly read-depends
+fun wr[] : CommittedTransaction -> CommittedTransaction {
+    iwr + pwr
+}
+
+// True if wr is the last write for an object in its transaction
+pred is_last_write[w : Write] {
+    no u : w.^enext | u.obj = w.obj
+}
+
+// Transaction T contains a read event that reads version v
+pred reads[T : Transaction, v: Version] {
+    some rd : T.events & Read | let wr=rd.sees | 
+    {
+        rd.obj = v.obj
+        wr.tr = v.tr
+        is_last_write[wr]
+    }
+}
+
+// Directly item-read depends
+//
+// We say that Tj directly item-read-depends on Ti if 
+// Ti installs some object version xi and Tj reads xi
+fun iwr[] : CommittedTransaction -> CommittedTransaction {
+    { disj Ti, Tj : CommittedTransaction | some xi : Version | 
+        xi in installs[Ti] and reads[Tj, xi] }
+}
+
 
 sig Object {}
 
 abstract sig Transaction {}
 
 abstract sig CommittedTransaction extends Transaction {
-    iwr : set CommittedTransaction, // directly item-read-depends
     pwr : set CommittedTransaction, // directly predicate-read-depends
-    wr : set CommittedTransaction, // directly read-depends
     irw : set CommittedTransaction, // directly item-anti-depends
     prw : set CommittedTransaction, // directly directly predicate-anti-depends
     rw : set CommittedTransaction, // directly anti-depends
