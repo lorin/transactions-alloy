@@ -1,7 +1,9 @@
 open util/relation
 open util/ordering[VersionNumber] as vo
 
-check PL1
+run {
+
+} for 5 but exactly 1 Transaction, exactly 1 Object, exactly 3 Write
 
 abstract sig Object {
     vs : set Version,
@@ -9,7 +11,7 @@ abstract sig Object {
 }
 
 abstract sig Transaction {
-    ops : set Operation
+    events : set Event
 }
 
 sig CommittedTransaction extends Transaction {
@@ -28,33 +30,31 @@ sig CommittedTransaction extends Transaction {
 sig AbortedTransaction extends Transaction {}
 
 
-abstract sig Operation {
+abstract sig Event {
     tr: Transaction,
-    eo: set Operation, // event order (partial ordering of events)
-    tn: lone Operation // transaction-next (next op in transaction)
+    eo: set Event, // event order (partial ordering of events)
+    next: lone Event // next operation in the transaction
 }
 
+sig Commit extends Event {}
 
+sig Abort extends Event {}
 
-sig Commit extends Operation {}
-
-sig Abort extends Operation {}
-
-abstract sig ReadWriteOperation extends Operation {
+abstract sig ReadWriteEvent extends Event {
     obj: Object,
     v: Version
 }
-sig Write extends ReadWriteOperation {
+sig Write extends ReadWriteEvent {
+    ith : VersionNumber,  // which write this is
     installs : lone Version
 }
 
-sig Read extends ReadWriteOperation {
+sig Read extends ReadWriteEvent {
     tw: Transaction,  // transaction that did the write
     sees: Write // operation that did the write
 }
 
 sig VersionNumber {}
-
 
 // installed (committed) versions
 sig Version {
@@ -73,8 +73,7 @@ sig Predicate {
     matches : set Version
 }
 
-
-sig PredicateRead extends Operation {
+sig PredicateRead extends Event {
     vset : Vset,
     p: Predicate,
     vs : set Version
@@ -150,7 +149,7 @@ pred G1 {
  * 
  */
 pred G1a {
-    some T1 : AbortedTransaction, T2 : CommittedTransaction, r : T2.ops & Read, w : T1.ops & Write | r.sees = w
+    some T1 : AbortedTransaction, T2 : CommittedTransaction, r : T2.events & Read, w : T1.events & Write | r.sees = w
 }
 
 
@@ -162,11 +161,11 @@ pred G1a {
  * final modification of x.
 */
 pred G1b {
-    some T1 : Transaction, T2 : CommittedTransaction, r : T2.ops & Read | let x = r.obj, wi=r.sees |
+    some T1 : Transaction, T2 : CommittedTransaction, r : T2.events & Read | let x = r.obj, wi=r.sees |
     {
         no T1 & T2 // different transactions
         wi.tr = T1
-        some wj : (T1.ops - wi) & Write | {
+        some wj : (T1.events - wi) & Write | {
             wj.obj = x
             wi->wj in eo
         }
@@ -212,3 +211,131 @@ pred G2item {
     // must not contain a cycle if there are no item-antidependency edges
     no iden & ^(DSG - irw)
 }
+
+
+//
+//
+// Facts
+//
+//
+
+// operations
+
+fact "every op is in the set of operations of the transaction it is associated with" {
+    all op : Event | op in op.tr.events
+}
+
+fact "every op is associated with exactly one transaction" {
+    all op : Event | one ~events[op]
+}
+
+fact "Event.next relation is irreflexive" {
+    irreflexive[this/Event <: next]
+}
+
+fact "ith relationship is consistent with eo" {
+    all T : Transaction, disj w1, w2 : T.events & Write | 
+        lt[w1.ith, w2.ith] <=> w1 -> w2 in eo
+}
+
+fact "first write is first ith" {
+    all T : Transaction, w : T.events & Write |
+        no w.^~next => w.ith = first
+}
+
+fact "ith goes up one at a time" {
+    all T : Transaction, w1, w2 : T.events & Write | ({
+        w1.obj = w2.obj
+        w1 -> w2 in eo
+        no w3 : T.events & Write | w3.obj=w1.obj and (w1->w3 + w3->w2) in eo
+    } => w1.ith.next = w2.ith)
+}
+
+/**
+ * 4.2: Transaction histoires
+ * The partial order of events E in a history obeys the following constraints:
+ */
+fact "Event order (eo) is a partial order on operations" {
+    partialOrder[eo, Event]
+}
+
+fact "eo preserves the order of all events within a transaction including the commit and abort events" {
+    (this/Event <: next) in eo
+}
+
+fact "all events within a transaction are totally ordered" {
+    all T : Transaction | totalOrder[eo, T.events]
+}
+
+fact "If an event rj (xi:m) exists in E, it is preceded by wi (xi:m) in E" {
+    // We model this with the "sees" relation. 
+    // If a read sees a write,
+    // then it must precede the write.
+    // Note: sees points in the opposite direction from eo
+    sees in ~eo
+}
+
+
+// If an event wi (xi:m) is followed by ri (xj) without an intervening event wi (xi:n) in E, xj must be xi:m
+
+fact "transaction must read its own writes" {
+    all T : Transaction, w : T.events & Write, r : T.events & Read | ({
+            w.obj = r.obj
+            w->r in eo
+            no v : T.events & Write | v.obj = r.obj and (w->v + v->r) in eo
+    } => r.sees = w)
+
+}
+
+
+// transactions
+
+fact "all transactions contain exactly one commit or abort" {
+    all t : Transaction | one t.events & (Commit + Abort)
+}
+
+fact "nothing comes after an abort or a commit" {
+    no (Commit + Abort).next
+}
+
+fact "no empty transactions" {
+    no t : Transaction | no t.events - (Commit + Abort)
+}
+
+
+fact "committed transactions contain a commit" {
+    all t : CommittedTransaction | some Commit & t.events
+}
+
+fact "aborted transactions contain an abort" {
+    all t : AbortedTransaction | some Abort & t.events
+}
+
+
+fact installs {
+    all t: CommittedTransaction | t.installs = t.events.installs
+}
+
+// predicate reads
+
+fact "predicate read is consistent with predicate" {
+    all pread : PredicateRead | pread.vs = pread.vset.vs & pread.p.matches
+}
+
+
+// vsets
+
+fact "Vsets are complete" {
+    all vset : Vset |
+        Object in vset.vs.obj
+}
+
+fact "only one version per object in a vset" {
+    all vset : Vset | no disj v1, v2 : vset.vs |
+        v1.obj = v2.obj
+}
+
+fact "Vsets are unique" {
+    no disj vset1, vset2 : Vset | vset1.vs = vset2.vs
+}
+
