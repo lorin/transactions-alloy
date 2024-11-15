@@ -57,8 +57,7 @@ sig Version {
     obj: Object,
     tr: CommittedTransaction,
     wo: Write,
-    i: VersionNumber,
-    vn: lone Version // next-version
+    vn: VersionNumber,
 }
 
 sig Vset {
