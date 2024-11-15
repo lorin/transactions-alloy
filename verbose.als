@@ -115,22 +115,59 @@ pred reads[T : Transaction, v: Version] {
     }
 }
 
-// Directly item-read depends
-//
-// We say that Tj directly item-read-depends on Ti if 
-// Ti installs some object version xi and Tj reads xi
+/**
+ * Directly item-read depends
+ *
+ * We say that Tj directly item-read-depends on Ti if 
+ * Ti installs some object version xi and Tj reads xi
+ */
 fun iwr[] : CommittedTransaction -> CommittedTransaction {
     { disj Ti, Tj : CommittedTransaction | some xi : Version | 
         xi in installs[Ti] and reads[Tj, xi] }
 }
 
+/**
+ * Directly predicate-read-depends
+ * 
+ * Transaction Tj directly predicate-read-depends on Ti if Tj performs an operation rj (P: Vset(P)),
+ * xk ∈ Vset(P), i = k or xi << xk, and xi changes the matches of rj (P: Vset(P)).
+ */
+ fun pwr[] : CommittedTransaction -> CommittedTransaction {
+    { disj Ti, Tj : CommittedTransaction | 
+        some rj : events[Tj] & PredicateRead, xk : rj.vset.vs, xi : installs[Ti] | 
+            {
+                xi.obj = xk.obj
+                lte[xi.vn, xk.vn] // xi's version is less than or equal to xk's version
+                changes_the_matches_of[xi, rj]
+            }
+    }
+ }
+
+/*
+Definition 2 : Change the Matches of a Predicate-Based
+Read.
+
+We say that a transaction Ti changes the matches of a predicate-based read rj
+(P: Vset(P)) if
+ - Ti installs xi,
+ - xh immediately precedes xi in the version order,and
+ - xh matches P whereas xi does not or vice-versa.
+
+ In this case, we also say that xi changes the matches of the predicate-based read.
+*/
+pred changes_the_matches_of[xi : Version, rj: PredicateRead] {
+    some xh : Version {
+        xh = prev[xi]
+        let m=rj.p.matches | 
+            xh in m <=> xi not in m
+    }
+}
 
 sig Object {}
 
 abstract sig Transaction {}
 
 abstract sig CommittedTransaction extends Transaction {
-    pwr : set CommittedTransaction, // directly predicate-read-depends
     irw : set CommittedTransaction, // directly item-anti-depends
     prw : set CommittedTransaction, // directly directly predicate-anti-depends
     rw : set CommittedTransaction, // directly anti-depends
