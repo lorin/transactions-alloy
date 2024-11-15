@@ -4,7 +4,7 @@ open util/ordering[WriteNumber] as wo
 
 run {
 
-} for 5 but exactly 2 Transaction, exactly 1 Object, exactly 3 Write
+} for 5 but exactly 1 Transaction, exactly 1 Object, exactly 3 Write
 
 sig Object {}
 
@@ -230,10 +230,7 @@ fact "enext relation" {
             no e3 : events[T] - (e1 + e2) | (e1->e3 + e3->e2) in eo
         }
     }
-    
 }
-
-
 
 fact "write number is consistent with execution order" {
     all T : Transaction, disj w1, w2 : events[T] & Write | 
@@ -246,10 +243,10 @@ fact "first write is first write number" {
 }
 
 fact "write number goes up one at a time" {
-    all T : Transaction, w1, w2 : events[T] & Write | ({
+    all T : Transaction, disj w1, w2 : events[T] & Write | ({
         w1.obj = w2.obj
         w1 -> w2 in eo
-        no w3 : events[T] & Write | w3.obj=w1.obj and (w1->w3 + w3->w2) in eo
+        no w3 : events[T] & Write - (w1+w2) | w3.obj=w1.obj and (w1->w3 + w3->w2) in eo
     } => w1.wn.next = w2.wn)
 }
 
@@ -293,11 +290,11 @@ fact "transaction must read its own writes" {
 // transactions
 
 fact "all transactions contain exactly one commit or abort" {
-    all t : Transaction | one t.events & (Commit + Abort)
+    all t : Transaction | one events[t] & (Commit + Abort)
 }
 
 fact "nothing comes after an abort or a commit" {
-    no (Commit + Abort).next
+    no (Commit + Abort).enext
 }
 
 fact "no empty transactions" {
