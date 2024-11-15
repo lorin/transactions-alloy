@@ -5,10 +5,7 @@ run {
 
 } for 5 but exactly 1 Transaction, exactly 1 Object, exactly 3 Write
 
-abstract sig Object {
-    vs : set Version,
-    next : Version lone -> lone Version
-}
+sig Object {}
 
 abstract sig Transaction {
     events : set Event
@@ -24,9 +21,6 @@ sig CommittedTransaction extends Transaction {
     prw : set CommittedTransaction, // directly directly predicate-anti-depends
     rw : set CommittedTransaction, // directly anti-depends
 }
-
-
-
 
 sig AbortedTransaction extends Transaction {}
 
