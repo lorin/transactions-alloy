@@ -4,7 +4,7 @@ open util/ordering[WriteNumber] as wo
 
 run {
 
-} for 5 but exactly 1 Transaction, exactly 2 Object, exactly 3 Write
+} for 6 but exactly 2 Transaction, exactly 2 Object, exactly 4 Write
 
 
 //
@@ -191,13 +191,34 @@ fun irw[]: CommittedTransaction -> CommittedTransaction {
     }
 }
 
+// true if v1 is a later version than v2
+pred later_version[v1, v2 : Version] {
+    v1.obj = v2.obj
+    gt[v1.vn, v2.vn]
+}
+
+/*
+
+Directly predicate-anti-depends: 
+
+We say that Tj directly predicate-anti-depends on Ti if Tj overwrites an
+operation ri (P: Vset(P)), i.e., 
+
+Tj installs a later version of some object that changes the matches of a predicate-based read performed by Ti
+
+*/
+fun prw[]: CommittedTransaction -> CommittedTransaction {
+    {disj Ti, Tj : CommittedTransaction | 
+        some ri : Ti.events & PredicateRead, xk : ri.vset.vs, xj : Tj.installs | 
+            later_version[xj, xk] and changes_the_matches_of[xj, ri]
+    }
+}
+
 sig Object {}
 
 abstract sig Transaction {}
 
-abstract sig CommittedTransaction extends Transaction {
-    prw : set CommittedTransaction, // directly directly predicate-anti-depends
-}
+abstract sig CommittedTransaction extends Transaction {}
 
 sig T extends CommittedTransaction {}
 
@@ -408,13 +429,31 @@ fact "no empty transactions" {
     no t : Transaction | no t.events - (Commit + Abort)
 }
 
-
 fact "committed transactions contain a commit" {
     all t : CommittedTransaction | some Commit & t.events
 }
 
 fact "aborted transactions contain an abort" {
     all t : AbortedTransaction | some Abort & t.events
+}
+
+// installed versions
+
+fact "every installed version must have an associated write" {
+    all v : Version | some w : Write & v.tr.events | w.obj = v.obj
+}
+
+fact "at most one version per (object, transaction) pair" {
+    all T : CommittedTransaction, o : Object |
+        lone {v : Version | v.tr=T and v.obj=o}
+}
+
+fact "every object written in a committed transaction must have an associated installed version" {
+    all t : CommittedTransaction, w : Write & T.events, o : w.obj |
+        some v : Version | {
+            v.tr = t
+            v.obj = o
+        }
 }
 
 // predicate reads
@@ -439,4 +478,3 @@ fact "only one version per object in a vset" {
 fact "Vsets are unique" {
     no disj vset1, vset2 : Vset | vset1.vs = vset2.vs
 }
-
