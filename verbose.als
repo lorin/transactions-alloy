@@ -2,16 +2,28 @@ open util/relation
 open util/ordering[VersionNumber] as vo
 open util/ordering[WriteNumber] as wo
 
-run {
-
-} for 6 but exactly 2 Transaction, exactly 2 Object, exactly 4 Write
+// run { } for 6 but exactly 2 Transaction, exactly 2 Object, exactly 4 Write
 
 
+check { not P1 } for 4
+
+
 //
 //
-// Phenomena
+// Phenomena (from BBG+)
 //
 //
+
+
+// w1[x]...r2[x]...((c1 or a1) and (c2 or a2) in any order)
+pred P1 {
+    some disj T1, T2 : Transaction, w1: Write & T1.events, r2 : Read & T2.events | {
+        w1->r2 in eo
+        r2.sees = w1
+        // r2 has to happen before c1 commits
+        let c1_or_a1=T1.events & (Commit + Abort) | r2->c1_or_a1 in eo
+    }
+}
 
 /**
  * G0: Write Cycles. A history H exhibits phenomenon
@@ -24,7 +36,7 @@ pred G0 {
 
 /**
  * Phenomenon G1 captures the essence of no-dirty-reads
- * and is comprised of G1a, G1b and G1c. 
+ * and is comprised of G1a, G1b and G1c.
  */
 pred G1 {
     G1a or G1b or G1c
@@ -32,13 +44,33 @@ pred G1 {
 
 /**
  * G1a: Aborted Reads
- * 
- * A history H shows phenomenon G1a if it contains an aborted transaction T1 and a
- * committed transaction T2 such that T2 has read some object modified by T1
- * 
+ *
+ * A history H shows phenomenon G1a if it contains an aborted transaction T1
+ * and a committed transaction T2 such that T2 has read some object (maybe via a predicate)
+ * modified by T1.
  */
 pred G1a {
-    some T1 : AbortedTransaction, T2 : CommittedTransaction, r : events[T2] & Read, w : events[T1] & Write | r.sees = w
+    some T1 : AbortedTransaction, T2 : CommittedTransaction, w : events[T1] & Write,
+          r : events[T2] & Read | r.sees = w
+}
+
+/**
+ * G1b: Intermediate Reads.
+ *
+ * A history H shows phenomenon G1b if it contains a committed transaction
+ * T2 that has read a version of object x written by transaction T1 that was not T1’s
+ * final modification of x.
+*/
+pred G1b {
+    some T1 : Transaction, T2 : CommittedTransaction, r : events[T2] & Read | let x = r.obj, wi=r.sees |
+    {
+        no T1 & T2 // different transactions
+        wi.tr = T1
+        some wj : (events[T1] - wi) & Write | {
+            wj.obj = x
+            wi->wj in eo
+        }
+    }
 }
 
 
@@ -92,7 +124,7 @@ fun ww[] : CommittedTransaction -> CommittedTransaction {
         v2.tr = Tj
         v1.next = v2
         }
-    } 
+    }
 }
 
 // Directly read-depends
@@ -107,7 +139,7 @@ pred is_last_write[w : Write] {
 
 // Transaction T contains a read event that reads version v
 pred reads[T : Transaction, v: Version] {
-    some rd : T.events & Read | let wr=rd.sees | 
+    some rd : T.events & Read | let wr=rd.sees |
     {
         rd.obj = v.obj
         wr.tr = v.tr
@@ -118,23 +150,23 @@ pred reads[T : Transaction, v: Version] {
 /**
  * Directly item-read depends
  *
- * We say that Tj directly item-read-depends on Ti if 
+ * We say that Tj directly item-read-depends on Ti if
  * Ti installs some object version xi and Tj reads xi
  */
 fun iwr[] : CommittedTransaction -> CommittedTransaction {
-    { disj Ti, Tj : CommittedTransaction | some xi : Version | 
+    { disj Ti, Tj : CommittedTransaction | some xi : Version |
         xi in installs[Ti] and reads[Tj, xi] }
 }
 
 /**
  * Directly predicate-read-depends
- * 
+ *
  * Transaction Tj directly predicate-read-depends on Ti if Tj performs an operation rj (P: Vset(P)),
  * xk ∈ Vset(P), i = k or xi << xk, and xi changes the matches of rj (P: Vset(P)).
  */
  fun pwr[] : CommittedTransaction -> CommittedTransaction {
-    { disj Ti, Tj : CommittedTransaction | 
-        some rj : events[Tj] & PredicateRead, xk : rj.vset.vs, xi : installs[Ti] | 
+    { disj Ti, Tj : CommittedTransaction |
+        some rj : events[Tj] & PredicateRead, xk : rj.vset.vs, xi : installs[Ti] |
             {
                 xi.obj = xk.obj
                 lte[xi.vn, xk.vn] // xi's version is less than or equal to xk's version
@@ -158,7 +190,7 @@ We say that a transaction Ti changes the matches of a predicate-based read rj
 pred changes_the_matches_of[xi : Version, rj: PredicateRead] {
     some xh : Version {
         xh = prev[xi]
-        let m=rj.p.matches | 
+        let m=rj.p.matches |
             xh in m <=> xi not in m
     }
 }
@@ -182,7 +214,7 @@ fun next_version[v : Version] : lone Version {
 // the later version directly item-anti-depends on the transaction that read the
 // earlier version
 fun irw[]: CommittedTransaction -> CommittedTransaction {
-    {disj Ti, Tj : CommittedTransaction | 
+    {disj Ti, Tj : CommittedTransaction |
         some xk, xl : Version  |  {
             Ti.reads[xk]
             xl = xk.next_version
@@ -199,17 +231,17 @@ pred later_version[v1, v2 : Version] {
 
 /*
 
-Directly predicate-anti-depends: 
+Directly predicate-anti-depends:
 
 We say that Tj directly predicate-anti-depends on Ti if Tj overwrites an
-operation ri (P: Vset(P)), i.e., 
+operation ri (P: Vset(P)), i.e.,
 
 Tj installs a later version of some object that changes the matches of a predicate-based read performed by Ti
 
 */
 fun prw[]: CommittedTransaction -> CommittedTransaction {
-    {disj Ti, Tj : CommittedTransaction | 
-        some ri : Ti.events & PredicateRead, xk : ri.vset.vs, xj : Tj.installs | 
+    {disj Ti, Tj : CommittedTransaction |
+        some ri : Ti.events & PredicateRead, xk : ri.vset.vs, xj : Tj.installs |
             later_version[xj, xk] and changes_the_matches_of[xj, ri]
     }
 }
@@ -278,29 +310,10 @@ fun events[t : Transaction] : set Event {
 }
 
 
-/**
- * G1b: Intermediate Reads.
- * 
- * A history H shows phenomenon G1b if it contains a committed transaction
- * T2 that has read a version of object x written by transaction T1 that was not T1’s
- * final modification of x.
-*/
-pred G1b {
-    some T1 : Transaction, T2 : CommittedTransaction, r : events[T2] & Read | let x = r.obj, wi=r.sees |
-    {
-        no T1 & T2 // different transactions
-        wi.tr = T1
-        some wj : (events[T1] - wi) & Write | {
-            wj.obj = x
-            wi->wj in eo
-        }
-    }
-}
-
 
 /**
  * G1c: Circular Information Flow.
- * 
+ *
  * A history H exhibits phenomenon G1c if DSG(H) contains a directed cycle
  * consisting entirely of dependency edges
  */
@@ -361,7 +374,7 @@ fact "enext relation" {
 }
 
 fact "write number is consistent with execution order" {
-    all T : Transaction, disj w1, w2 : events[T] & Write | 
+    all T : Transaction, disj w1, w2 : events[T] & Write |
         lt[w1.wn, w2.wn] <=> w1 -> w2 in eo
 }
 
@@ -395,7 +408,7 @@ fact "all events within a transaction are totally ordered" {
 }
 
 fact "If an event rj (xi:m) exists in E, it is preceded by wi (xi:m) in E" {
-    // We model this with the "sees" relation. 
+    // We model this with the "sees" relation.
     // If a read sees a write,
     // then it must precede the write.
     // Note: sees points in the opposite direction from eo

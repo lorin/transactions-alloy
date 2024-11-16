@@ -5,6 +5,7 @@ one sig X,Y extends Obj {}
 
 run {some prw} for 6 but exactly 1 P
 
+
 /**
  * We define PL-1 as the level in which G0 is disallowed
  */
