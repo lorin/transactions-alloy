@@ -14,6 +14,20 @@ check { not P1 } for 4
 //
 //
 
+// BBG+ phenomena require a global ordering of events
+
+pred adjacent[n1 : univ, n2 : univ, r: univ->univ, s : set univ] {
+    n1->n2 in r
+    no n3 : s - (n1+n2)  | {
+        n1->n3 in r
+        n3->n2 in r
+    }
+}
+
+fun gnext[] : Event -> Event  {
+    {disj e1, e2 : Event | adjacent[e1, e2, eo, Event] }
+}
+
 
 // w1[x]...r2[x]...((c1 or a1) and (c2 or a2) in any order)
 pred P1 {
@@ -250,11 +264,8 @@ sig Object {}
 
 abstract sig Transaction {}
 
-abstract sig CommittedTransaction extends Transaction {}
-
-sig T extends CommittedTransaction {}
-
 sig AbortedTransaction extends Transaction {}
+sig CommittedTransaction extends Transaction {}
 
 
 abstract sig Event {
@@ -462,7 +473,7 @@ fact "at most one version per (object, transaction) pair" {
 }
 
 fact "every object written in a committed transaction must have an associated installed version" {
-    all t : CommittedTransaction, w : Write & T.events, o : w.obj |
+    all t : CommittedTransaction, w : Write & events[t], o : w.obj |
         some v : Version | {
             v.tr = t
             v.obj = o
