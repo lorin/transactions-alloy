@@ -1,11 +1,12 @@
 open util/relation
 open util/ordering[VersionNumber] as vo
 open util/ordering[WriteNumber] as wo
+open util/ordering[Event] as teo // total event order
 
 // run { } for 6 but exactly 2 Transaction, exactly 2 Object, exactly 4 Write
 
 
-check { P1 => A1 } for 4
+check { A2 <=> P2 } for 5
 
 
 //
@@ -19,26 +20,66 @@ check { P1 => A1 } for 4
 * P1: w1[x]...r2[x]...((c1 or a1) and (c2 or a2) in any order)
 */
 pred P1 {
-    some disj T1, T2 : Transaction, w1: Write & T1.events, r2 : Read & T2.events | {
+    some disj T1, T2 : Transaction, 
+              w1 : Write & events[T1], 
+              r2 : Read & events[T2],
+              c1_or_a1 : T1.events & (Commit + Abort) | {
         w1->r2 in eo
         r2.sees = w1
         // r2 has to happen before T1 completes
-        let c1_or_a1=T1.events & (Commit + Abort) | r2->c1_or_a1 in eo
+        r2->c1_or_a1 in eo
     }
-
 }
 
 /**
  * A1: w1[x]...r2[x]...(a1 and c2 in any order)
  */
 pred A1 {
-    some T1 : AbortedTransaction, T2: CommittedTransaction, w1: Write & T1.events, r2 : Read & T2.events | {
-        w1->r2 in eo
-        r2.sees = w1
-        // r2 has to happen before T1 aborts
-        let a1 = Abort & T1.events | r2->a1 in eo
+    some T1 : AbortedTransaction, 
+         T2 : CommittedTransaction, 
+         w1: Write & events[T1], 
+         r2 : Read & events[T2],
+         a1 : Abort & events[T1] | {
+
+       w1->r2 in eo
+       r2.sees = w1
+       // r2 has to happen before T1 aborts
+       r2->a1 in eo
     }
 }
+
+/**
+ * P2: r1[x]...w2[x]...((c1 or a1) and (c2 or a2) in any order)
+ */
+ pred P2 {
+    some disj T1, T2 : Transaction, 
+              r1 : Read & events[T2], 
+              w2 : Write & events[T1],
+              c1_or_a1 : T1.events & (Commit + Abort) | {
+     
+        r1->w2 in eo
+        w2->c1_or_a1 in eo
+    }
+ }
+
+/**
+ * A2: r1[x]...w2[x]...c2...r1[x]...c1
+ */
+ pred A2 {
+    some disj T1, T2 : CommittedTransaction, 
+              r1 : Read & events[T1], 
+              w2 : Write & events[T2],
+              c2 : Commit & events[T2]
+               | {
+        r1->w2 in eo
+        w2->c2 in eo
+        c2->r1 in eo
+        r1.sees = w2
+    }
+ }
+
+
+
 
 //
 // Phenomena from Adya et al.
@@ -382,7 +423,7 @@ fun gnext[] : Event -> Event  {
     {disj e1, e2 : Event | adjacent[e1, e2, eo, Event] }
 }
 
-
+ 
 //
 //
 // Facts
@@ -427,6 +468,7 @@ fact "write number goes up one at a time" {
  */
 fact "Event order (eo) is a partial order on operations" {
     partialOrder[eo, Event]
+    teo/next in eo
 }
 
 fact "eo preserves the order of all events within a transaction including the commit and abort events" {
