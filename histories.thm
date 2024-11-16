@@ -80,8 +80,11 @@
 </edge>
 
 <edge visible="yes">
-   <relation name="$gnext"> <type name="Event"/> <type name="Event"/> </relation>
    <relation name="installs"> <type name="Write"/> <type name="Version"/> </relation>
+</edge>
+
+<edge visible="yes" label="gnext">
+   <relation name="$gnext"> <type name="Event"/> <type name="Event"/> </relation>
 </edge>
 
 <edge visible="yes" layout="yes">

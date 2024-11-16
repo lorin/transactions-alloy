@@ -5,39 +5,45 @@ open util/ordering[WriteNumber] as wo
 // run { } for 6 but exactly 2 Transaction, exactly 2 Object, exactly 4 Write
 
 
-check { not P1 } for 4
+check { P1 => A1 } for 4
 
 
 //
 //
-// Phenomena (from BBG+)
+// Phenomena from BBG+
 //
 //
 
-// BBG+ phenomena require a global ordering of events
 
-pred adjacent[n1 : univ, n2 : univ, r: univ->univ, s : set univ] {
-    n1->n2 in r
-    no n3 : s - (n1+n2)  | {
-        n1->n3 in r
-        n3->n2 in r
-    }
-}
-
-fun gnext[] : Event -> Event  {
-    {disj e1, e2 : Event | adjacent[e1, e2, eo, Event] }
-}
-
-
-// w1[x]...r2[x]...((c1 or a1) and (c2 or a2) in any order)
+/**
+* P1: w1[x]...r2[x]...((c1 or a1) and (c2 or a2) in any order)
+*/
 pred P1 {
     some disj T1, T2 : Transaction, w1: Write & T1.events, r2 : Read & T2.events | {
         w1->r2 in eo
         r2.sees = w1
-        // r2 has to happen before c1 commits
+        // r2 has to happen before T1 completes
         let c1_or_a1=T1.events & (Commit + Abort) | r2->c1_or_a1 in eo
     }
+
 }
+
+/**
+ * A1: w1[x]...r2[x]...(a1 and c2 in any order)
+ */
+pred A1 {
+    some T1 : AbortedTransaction, T2: CommittedTransaction, w1: Write & T1.events, r2 : Read & T2.events | {
+        w1->r2 in eo
+        r2.sees = w1
+        // r2 has to happen before T1 aborts
+        let a1 = Abort & T1.events | r2->a1 in eo
+    }
+}
+
+//
+// Phenomena from Adya et al.
+//
+
 
 /**
  * G0: Write Cycles. A history H exhibits phenomenon
@@ -364,6 +370,18 @@ pred G2item {
     no iden & ^(DSG - irw)
 }
 
+pred adjacent[n1 : univ, n2 : univ, r: univ->univ, s : set univ] {
+    n1->n2 in r
+    no n3 : s - (n1+n2)  | {
+        n1->n3 in r
+        n3->n2 in r
+    }
+}
+
+fun gnext[] : Event -> Event  {
+    {disj e1, e2 : Event | adjacent[e1, e2, eo, Event] }
+}
+
 
 //
 //
@@ -372,6 +390,7 @@ pred G2item {
 //
 
 // operations
+
 
 fact "enext relation" {
     irreflexive[enext]
