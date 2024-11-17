@@ -4,8 +4,24 @@
 //
 //
 
+open transactions
+
 
 check { A3 <=> P3 } for 5
+
+
+pred adjacent[n1 : univ, n2 : univ, r: univ->univ, s : set univ] {
+    n1->n2 in r
+    no n3 : s - (n1+n2)  | {
+        n1->n3 in r
+        n3->n2 in r
+    }
+}
+
+fun gnext[] : Event -> Event  {
+    {disj e1, e2 : Event | adjacent[e1, e2, eo, Event] }
+}
+
 
 /**
 * P1: w1[x]...r2[x]...((c1 or a1) and (c2 or a2) in any order)
