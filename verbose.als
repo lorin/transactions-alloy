@@ -6,7 +6,7 @@ open util/ordering[Event] as teo // total event order
 // run { } for 6 but exactly 2 Transaction, exactly 2 Object, exactly 4 Write
 
 
-check { A2 <=> P2 } for 5
+check { A3 <=> P3 } for 5
 
 
 //
@@ -20,8 +20,8 @@ check { A2 <=> P2 } for 5
 * P1: w1[x]...r2[x]...((c1 or a1) and (c2 or a2) in any order)
 */
 pred P1 {
-    some disj T1, T2 : Transaction, 
-              w1 : Write & events[T1], 
+    some disj T1, T2 : Transaction,
+              w1 : Write & events[T1],
               r2 : Read & events[T2],
               c1_or_a1 : T1.events & (Commit + Abort) | {
         w1->r2 in eo
@@ -35,9 +35,9 @@ pred P1 {
  * A1: w1[x]...r2[x]...(a1 and c2 in any order)
  */
 pred A1 {
-    some T1 : AbortedTransaction, 
-         T2 : CommittedTransaction, 
-         w1: Write & events[T1], 
+    some T1 : AbortedTransaction,
+         T2 : CommittedTransaction,
+         w1: Write & events[T1],
          r2 : Read & events[T2],
          a1 : Abort & events[T1] | {
 
@@ -52,11 +52,11 @@ pred A1 {
  * P2: r1[x]...w2[x]...((c1 or a1) and (c2 or a2) in any order)
  */
  pred P2 {
-    some disj T1, T2 : Transaction, 
-              r1 : Read & events[T2], 
+    some disj T1, T2 : Transaction,
+              r1 : Read & events[T2],
               w2 : Write & events[T1],
               c1_or_a1 : T1.events & (Commit + Abort) | {
-     
+
         r1->w2 in eo
         w2->c1_or_a1 in eo
     }
@@ -66,8 +66,8 @@ pred A1 {
  * A2: r1[x]...w2[x]...c2...r1[x]...c1
  */
  pred A2 {
-    some disj T1, T2 : CommittedTransaction, 
-              r1 : Read & events[T1], 
+    some disj T1, T2 : CommittedTransaction,
+              r1 : Read & events[T1],
               w2 : Write & events[T2],
               c2 : Commit & events[T2]
                | {
@@ -78,6 +78,35 @@ pred A1 {
     }
  }
 
+ /**
+  * P3: r1[P]...w2[y in P]...((c1 or a1) and (c2 or a2) any order)
+  */
+  pred P3 {
+    some disj T1, T2 : Transaction,
+              r1 : PredicateRead & events[T1],
+              w2 : Write & events[T2],
+              c1_or_a1 : (Abort + Commit) & events[T1] | {
+                r1->w2 in eo
+                w2->c1_or_a1 in eo
+                w2.obj in r1.vset.vs.obj
+              }
+  }
+
+/**
+ * A3: r1[P]...w2[y in P]...c2...r1[P]...c1
+ */
+ pred A3 {
+    some disj T1, T2 : CommittedTransaction,
+              r1a, r1b : PredicateRead & events[T1],
+              w2 : Write & events[T2],
+              c2 : Commit & events[T2] | {
+                r1a.p = r1b.p
+                r1a->w2 in eo
+                w2->c2 in eo
+                c2->r1b in eo
+                w2.obj in r1a.vset.vs.obj
+                }
+  }
 
 
 
@@ -423,7 +452,7 @@ fun gnext[] : Event -> Event  {
     {disj e1, e2 : Event | adjacent[e1, e2, eo, Event] }
 }
 
- 
+
 //
 //
 // Facts
