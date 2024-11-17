@@ -1,7 +1,7 @@
 open util/relation
 open util/ordering[WriteNumber] as wo
 
-run {some Read} for 4
+run {some PredicateRead.objs; #Object>1} for 6
 
 //
 // signatures
@@ -38,33 +38,18 @@ sig Read extends Event {
     sees: Write // operation that did the write
 }
 
-// installed (committed) versions
-sig Version {
-    obj: Object,
-    tr: CommittedTransaction,
-    vn: VersionNumber,
-}
-
-sig Vset {
-    vs : set Version
-}
-
-sig Predicate {
-    matches : set Version
-}
-
 sig PredicateRead extends Event {
-    vset : Vset,
-    p: Predicate,
-    vs : set Version
+    objs : set Object
 }
 
 sig VersionNumber {}
+
 sig WriteNumber {}
 
 
-fun obj[r: Read] : Object {
-    r.sees.obj
+
+fun obj[] : Read -> Object {
+    {r : Read, o : Object | o = r.sees.obj}
 }
 
 fun events[t : Transaction] : set Event {
@@ -159,29 +144,4 @@ fact "transaction must read its own writes" {
             no v : T.events & Write | v.obj = r.obj and (w->v + v->r) in eo
     } => r.sees = w)
 
-}
-
-
-
-// predicate reads
-
-fact "predicate read is consistent with predicate" {
-    all pread : PredicateRead | pread.vs = pread.vset.vs & pread.p.matches
-}
-
-
-// vsets
-
-fact "Vsets are complete" {
-    all vset : Vset |
-        Object in vset.vs.obj
-}
-
-fact "only one version per object in a vset" {
-    all vset : Vset | no disj v1, v2 : vset.vs |
-        v1.obj = v2.obj
-}
-
-fact "Vsets are unique" {
-    no disj vset1, vset2 : Vset | vset1.vs = vset2.vs
 }

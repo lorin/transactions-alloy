@@ -4,7 +4,7 @@
 //
 //
 
-open transactions
+open transaction
 
 
 check { A3 <=> P3 } for 5
@@ -95,7 +95,7 @@ pred A1 {
               c1_or_a1 : (Abort + Commit) & events[T1] | {
                 r1->w2 in eo
                 w2->c1_or_a1 in eo
-                w2.obj in r1.vset.vs.obj
+                w2.obj in r1.objs
               }
   }
 
@@ -111,6 +111,6 @@ pred A1 {
                 r1a->w2 in eo
                 w2->c2 in eo
                 c2->r1b in eo
-                w2.obj in r1a.vset.vs.obj
+                w2.obj in r1a.objs
                 }
   }

@@ -1,8 +1,7 @@
 /**
+ * Based on the following paper:
  *
- *
- *
- * Source: Generalized Isolation Level Definitions,
+ * Generalized Isolation Level Definitions,
  * Atul Adya, Barbara Liskov, Patrick O'Neil.
  * Proceedings of the IEEE International Conference on Data Engineering, March 2000.
  *
@@ -11,15 +10,65 @@
 open transactions
 open util/ordering[VersionNumber] as vo
 
+// installed (committed) versions
+sig Version {
+    obj: Object,
+    tr: CommittedTransaction,
+    vn: VersionNumber,
+}
+
+// set of versions seen by a predicate read
+sig Vset {
+    vs : set Version
+}
+
+sig Predicate {
+    matches : set Version
+}
+
+
+sig MultiVersionPredicateRead extends PredicateRead {
+    vset : Vset,
+    p: Predicate
+}
+
+fun vs[pread : MultiVersionPredicateRead] : set Version {
+    pread.vset.vs & pread.p.matches
+}
 
 
 fun installs[T : Transaction] : set Version {
     Version <: tr.T
 }
 
-//
-// Facts: isntalled version
-//
+
+// predicate reads
+
+fact "objects in predicate read are the objects that match in the version set"{
+    all pread : MultiVersionPredicateRead |
+        pread.objs = (pread.vset.vs & pread.p.matches).obj
+}
+
+
+
+// vsets
+
+fact "Vsets are complete" {
+    all vset : Vset |
+        Object in vset.vs.obj
+}
+
+fact "only one version per object in a vset" {
+    all vset : Vset | no disj v1, v2 : vset.vs |
+        v1.obj = v2.obj
+}
+
+fact "Vsets are unique" {
+    no disj vset1, vset2 : Vset | vset1.vs = vset2.vs
+}
+
+
+// Installed version
 
 
 
@@ -59,7 +108,7 @@ fun wr[] : CommittedTransaction -> CommittedTransaction {
 
 // True if wr is the last write for an object in its transaction
 pred is_last_write[w : Write] {
-    no u : w.^tnext | u.obj = w.obj
+    no u : Write & w.^tnext | u.obj = w.obj
 }
 
 // Transaction T contains a read event that reads version v
