@@ -47,6 +47,10 @@
    <relation name="vn"> <type name="Version"/> <type name="VersionNumber"/> </relation>
 </edge>
 
+<edge visible="no">
+   <relation name="eo"> <type name="t/Event"/> <type name="t/Event"/> </relation>
+</edge>
+
 </view>
 
 </alloy>
