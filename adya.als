@@ -12,7 +12,14 @@ open transactions as t
 open bbg as b
 
 
-check anomaly_serializable_strict_implies_PL3 for 5
+run {
+    G2
+    not G2item
+    no AbortedTransaction
+} for 7 but exactly 3 Transaction, exactly 1 Predicate, exactly 2 Object
+
+// check PL3_implies_anomaly_serializable_broad for 5
+
 
 assert anomaly_serializable_strict_implies_PL3 {
     always_read_most_recent_write => (b/AnomalySerializableStrict => PL3)
@@ -39,14 +46,6 @@ fun gnext[] : Event -> Event {
     b/gnext
 }
 
-/*
-run {
-    no AbortedTransaction
-    G0
-    } for 6 but exactly 2 Transaction, exactly 2 Object, exactly 0 Predicate, exactly 4 Write, exactly 4 Version
-
-*/
-// check PL2_99_implies_PL3 for 9
 
 
 sig VersionNumber {}
@@ -54,9 +53,11 @@ sig VersionNumber {}
 // installed (committed) versions
 sig Version {
     obj: Object,
-    tr: CommittedTransaction,
-    vn: VersionNumber,
+    tr: lone CommittedTransaction,
+    vn: VersionNumber
 }
+
+sig InitialVersion in Version {}
 
 // set of versions seen by a predicate read
 sig Vset {
@@ -82,6 +83,19 @@ fun installs[T : Transaction] : set Version {
 
 fun installs[] : Commit -> set Version {
     {c : Commit, v : Version | v.tr=c.tr}
+}
+
+// initial versions
+fact "initial versions and only initial versions don't have associated transactions" {
+    all v : Version | no v.tr <=> v in InitialVersion
+}
+
+fact "there is exactly one initial version for each object" {
+    all o : Object | one v : InitialVersion |  v.obj = o
+}
+
+fact "initial versions have the initial version number" {
+    all v : InitialVersion | v.vn = vo/first
 }
 
 
@@ -117,7 +131,7 @@ fact "Vsets are unique" {
 // Installed versions
 
 fact "every installed version must have an associated write" {
-    all v : Version | some w : Write & v.tr.events |  w.obj = v.obj
+    all v : Version - InitialVersion | some w : Write & v.tr.events |  w.obj = v.obj
 }
 
 fact "at most one version per (object, transaction) pair" {
@@ -231,6 +245,13 @@ fun iwr[] : CommittedTransaction -> CommittedTransaction {
                 changes_the_matches_of[xi, rj]
             }
     }
+ }
+
+ fun prev[x : Version] : lone Version {
+    {v : Version | {
+        same_object[x,v]
+        v.vn=prev[x.vn]
+    }}
  }
 
 /*
@@ -382,10 +403,10 @@ fun DSG[] : CommittedTransaction -> CommittedTransaction {
 */
 pred G2 {
     // must contain a cycle
-    not acyclic[DSG, CommittedTransaction]
+    some iden & ^DSG
 
     // must not contain a cycle if there are no antidependency edges
-    acyclic[DSG - rw, CommittedTransaction]
+    no iden & ^(DSG - rw)
 }
 
 
