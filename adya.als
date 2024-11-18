@@ -169,6 +169,7 @@ fact "version numbers are consistent with transaction ordering" {
 }
 
 
+
 // Directly write-depends
 fun ww[] : CommittedTransaction -> CommittedTransaction {
     { disj Ti, Tj : CommittedTransaction | some v1 : Ti.installs, v2 : Tj.installs | {
