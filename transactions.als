@@ -11,9 +11,7 @@ sig Object {}
 
 abstract sig Transaction {}
 
-sig AbortedTransaction extends Transaction {}
-
-sig CommittedTransaction extends Transaction {}
+sig AbortedTransaction, CommittedTransaction in Transaction {}
 
 
 abstract sig Event {
@@ -63,6 +61,12 @@ fun events[t : Transaction] : set Event {
 //
 
 // transactions
+
+
+fact {
+    no AbortedTransaction & CommittedTransaction
+}
+
 
 fact "all transactions contain exactly one final event" {
     all t : Transaction | one events[t] & FinalEvent
