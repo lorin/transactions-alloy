@@ -88,6 +88,10 @@ fun installs[] : Commit -> set Version {
     {c : Commit, v : Version | v.tr=c.tr}
 }
 
+fun vs[] : VsetPredicateRead -> set Version {
+    {pread : VsetPredicateRead, v : Version | v in pread.vset.vs}
+}
+
 // initial versions
 fact "initial versions and only initial versions don't have associated transactions" {
     all v : Version | no v.tr <=> v in InitialVersion
