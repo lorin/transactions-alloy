@@ -11,6 +11,13 @@ open util/ordering[VersionNumber] as vo
 open transactions as t
 open bbg as b
 
+// check {b/AnomalySerializableStrict => PL3} for 5
+check {b/AnomalySerializableBroad => PL3} for 5
+
+fun gnext[] : Event -> Event {
+    b/gnext
+}
+
 
 sig VersionNumber {}
 

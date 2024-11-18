@@ -8,9 +8,14 @@
  * https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-95-51.pdf
  */
 
-open transactions as t
 
-check { AnsiReadCommittedStrict } for 4
+open transactions as t
+open util/ordering[Event] as geo
+
+let gnext = geo/next
+let teo = *gnext
+
+// check { AnsiReadCommittedStrict } for 4
 
 /**
  * Table 1
@@ -47,8 +52,6 @@ pred AnomalySerializableStrict {
 }
 
 
-
-
 pred adjacent[n1 : univ, n2 : univ, r: univ->univ, s : set univ] {
     n1->n2 in r
     no n3 : s - (n1+n2)  | {
@@ -58,7 +61,11 @@ pred adjacent[n1 : univ, n2 : univ, r: univ->univ, s : set univ] {
 }
 
 fun gnext[] : Event -> Event  {
-    {disj e1, e2 : Event | adjacent[e1, e2, eo, Event] }
+    {disj e1, e2 : Event | e1->e2 in teo }
+}
+
+fact "gnext is consistent with eo" {
+    eo in teo
 }
 
 
@@ -75,10 +82,10 @@ pred P1 {
               w1 : Write & events[T1],
               r2 : Read & events[T2],
               c1_or_a1 : T1.events & (Commit + Abort) | {
-        w1->r2 in eo
+        w1->r2 in teo
         r2.sees = w1
         // r2 has to happen before T1 completes
-        r2->c1_or_a1 in eo
+        r2->c1_or_a1 in teo
     }
 }
 
@@ -92,10 +99,10 @@ pred A1 {
          r2 : Read & events[T2],
          a1 : Abort & events[T1] | {
 
-       w1->r2 in eo
+       w1->r2 in teo
        r2.sees = w1
        // r2 has to happen before T1 aborts
-       r2->a1 in eo
+       r2->a1 in teo
     }
 }
 
@@ -108,8 +115,8 @@ pred A1 {
               w2 : Write & events[T1],
               c1_or_a1 : T1.events & (Commit + Abort) | {
 
-        r1->w2 in eo
-        w2->c1_or_a1 in eo
+        r1->w2 in teo
+        w2->c1_or_a1 in teo
     }
  }
 
@@ -122,9 +129,9 @@ pred A1 {
               w2 : Write & events[T2],
               c2 : Commit & events[T2]
                | {
-        r1->w2 in eo
-        w2->c2 in eo
-        c2->r1 in eo
+        r1->w2 in teo
+        w2->c2 in teo
+        c2->r1 in teo
         r1.sees = w2
     }
  }
@@ -137,8 +144,8 @@ pred A1 {
               r1 : PredicateRead & events[T1],
               w2 : Write & events[T2],
               c1_or_a1 : (Abort + Commit) & events[T1] | {
-                r1->w2 in eo
-                w2->c1_or_a1 in eo
+                r1->w2 in teo
+                w2->c1_or_a1 in teo
                 w2.obj in r1.objs
               }
   }
@@ -152,9 +159,9 @@ pred A1 {
               w2 : Write & events[T2],
               c2 : Commit & events[T2] | {
                 r1a.p = r1b.p
-                r1a->w2 in eo
-                w2->c2 in eo
-                c2->r1b in eo
+                r1a->w2 in teo
+                w2->c2 in teo
+                c2->r1b in teo
                 w2.obj in r1a.objs
                 }
   }
