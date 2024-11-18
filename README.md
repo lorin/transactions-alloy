@@ -3,6 +3,8 @@
 This repo contains Alloy models for generating database transaction histories, and checking
 isolation properties of those histories.
 
+![img](image.png)
+
 The models in this repo are based on the formal models from the following papers.
 
 
