@@ -80,6 +80,10 @@ fun installs[T : Transaction] : set Version {
     Version <: tr.T
 }
 
+fun installs[] : Commit -> set Version {
+    {c : Commit, v : Version | v.tr=c.tr}
+}
+
 
 // predicate reads
 
