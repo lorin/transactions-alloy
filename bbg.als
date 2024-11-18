@@ -8,9 +8,45 @@
  * https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-95-51.pdf
  */
 
-open transactions
+open transactions as t
 
-check { A3 <=> P3 } for 5
+check { AnsiReadCommittedStrict } for 4
+
+/**
+ * Table 1
+ */
+pred AnsiReadCommittedBroad {
+    not P1
+}
+
+
+pred AnsiReadCommittedStrict {
+    not A1
+}
+
+pred AnsiRepeatableReadBroad {
+    not P1
+    not P2
+}
+
+pred AnsiRepeatableReadStrict {
+    not A1
+    not A2
+}
+
+pred AnomalySerializableBroad {
+    not P1
+    not P2
+    not P3
+}
+
+pred AnomalySerializableStrict {
+    not A1
+    not A2
+    not A3
+}
+
+
 
 
 pred adjacent[n1 : univ, n2 : univ, r: univ->univ, s : set univ] {
@@ -23,6 +59,11 @@ pred adjacent[n1 : univ, n2 : univ, r: univ->univ, s : set univ] {
 
 fun gnext[] : Event -> Event  {
     {disj e1, e2 : Event | adjacent[e1, e2, eo, Event] }
+}
+
+
+fact "cannot see writes from the future" {
+    ~sees in ^gnext
 }
 
 

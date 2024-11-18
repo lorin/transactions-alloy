@@ -11,8 +11,6 @@ open util/ordering[VersionNumber] as vo
 open transactions as t
 open bbg as b
 
-run {}
-
 
 sig VersionNumber {}
 
@@ -332,21 +330,22 @@ pred G2item {
 /**
  * We define PL-1 as the level in which G0 is disallowed
  */
-assert PL1 {
+pred PL1 {
     not G0
 }
 
 /**
  * We define isolation level PL-2 as one in which phenomenon G1 is disallowed
  */
-assert PL2 {
+pred PL2 {
     not G1
 }
 
 /*
  * We define level PL-2.99 as one that proscribes G1 and G2-item
  */
-assert PL2_99 {
+pred PL2_99 {
+    not G0
     not G1
     not G2item
 }
@@ -354,7 +353,7 @@ assert PL2_99 {
 /**
  * We define PL-3 as an isolation level that proscribes G1 and G2
  */
-assert PL3 {
+pred PL3 {
     not G1
     not G2
 }
