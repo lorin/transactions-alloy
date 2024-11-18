@@ -1,11 +1,14 @@
-//
-//
-// Phenomena from BBG+
-//
-//
+/**
+ * Based on the following paper:
+ *
+ * A Critique of ANSI SQL Isolation Levels
+ *
+ * Hal Berenson, Phil Bernstein, Jim Gray, Jim Melton, Elizabeth O'Neil, Patrick O'Neil,
+ * Microsoft Research Technical Report MSR-TR-95-51, June 1995.
+ * https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-95-51.pdf
+ */
 
-open transaction
-
+open transactions
 
 check { A3 <=> P3 } for 5
 

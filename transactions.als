@@ -38,11 +38,12 @@ sig Read extends Event {
     sees: Write // operation that did the write
 }
 
-sig PredicateRead extends Event {
+abstract sig Predicate {}
+
+abstract sig PredicateRead extends Event {
+    p : Predicate,
     objs : set Object
 }
-
-sig VersionNumber {}
 
 sig WriteNumber {}
 

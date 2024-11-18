@@ -7,8 +7,14 @@
  *
  * https://pmg.csail.mit.edu/papers/icde00.pdf
 **/
-open transactions
 open util/ordering[VersionNumber] as vo
+open transactions as t
+open bbg as b
+
+run {}
+
+
+sig VersionNumber {}
 
 // installed (committed) versions
 sig Version {
@@ -22,17 +28,15 @@ sig Vset {
     vs : set Version
 }
 
-sig Predicate {
+sig VsetPredicate extends Predicate {
     matches : set Version
 }
 
-
-sig MultiVersionPredicateRead extends PredicateRead {
-    vset : Vset,
-    p: Predicate
+sig VsetPredicateRead extends PredicateRead {
+    vset : Vset
 }
 
-fun vs[pread : MultiVersionPredicateRead] : set Version {
+fun vs[pread : VsetPredicateRead] : set Version {
     pread.vset.vs & pread.p.matches
 }
 
@@ -45,7 +49,7 @@ fun installs[T : Transaction] : set Version {
 // predicate reads
 
 fact "objects in predicate read are the objects that match in the version set"{
-    all pread : MultiVersionPredicateRead |
+    all pread : VsetPredicateRead |
         pread.objs = (pread.vset.vs & pread.p.matches).obj
 }
 

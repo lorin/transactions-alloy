@@ -3,57 +3,40 @@
 
 <view>
 
-<defaultnode/>
+<defaultnode hideunconnected="yes"/>
 
 <defaultedge/>
 
 <node>
-   <type name="Abort"/>
-   <type name="Commit"/>
-   <type name="Event"/>
    <type name="Int"/>
-   <type name="PredicateRead"/>
-   <type name="Read"/>
-   <type name="ReadWriteEvent"/>
    <type name="String"/>
    <type name="univ"/>
-   <type name="Write"/>
-   <type name="seq/Int"/>
-   <type name="vo/Ord"/>
-   <type name="wo/Ord"/>
-   <set name="$P1_r2" type="Read"/>
-   <set name="$P1_T1" type="Transaction"/>
-   <set name="$P1_T2" type="Transaction"/>
-   <set name="$P1_w1" type="Write"/>
-</node>
-
-<node hideunconnected="yes" label="n">
-   <type name="WriteNumber"/>
-</node>
-
-<node label="A">
-   <type name="AbortedTransaction"/>
-</node>
-
-<node shape="Circle" label="T">
-   <type name="CommittedTransaction"/>
-</node>
-
-<node visible="no">
-   <type name="Predicate"/>
    <type name="Vset"/>
+   <type name="VsetPredicate"/>
+   <type name="VsetPredicateRead"/>
+   <type name="seq/Int"/>
+   <type name="t/Abort"/>
+   <type name="t/AbortedTransaction"/>
+   <type name="t/Commit"/>
+   <type name="t/Event"/>
+   <type name="t/FinalEvent"/>
+   <type name="t/Object"/>
+   <type name="t/Predicate"/>
+   <type name="t/PredicateRead"/>
+   <type name="t/Read"/>
+   <type name="t/Transaction"/>
+   <type name="t/Write"/>
+   <type name="t/WriteNumber"/>
+   <type name="vo/Ord"/>
+   <type name="t/wo/Ord"/>
+</node>
+
+<node label="T">
+   <type name="t/CommittedTransaction"/>
 </node>
 
 <node visible="no" hideunconnected="no">
    <type name="Version"/>
-</node>
-
-<node visible="no" hideunconnected="yes">
-   <type name="Transaction"/>
-</node>
-
-<node visible="no" label="X">
-   <type name="Object"/>
 </node>
 
 <node visible="no" label="v">
@@ -61,34 +44,7 @@
 </node>
 
 <edge attribute="yes">
-   <relation name="obj"> <type name="ReadWriteEvent"/> <type name="Object"/> </relation>
-   <relation name="obj"> <type name="Version"/> <type name="Object"/> </relation>
    <relation name="vn"> <type name="Version"/> <type name="VersionNumber"/> </relation>
-</edge>
-
-<edge visible="no">
-   <relation name="$DSG"> <type name="CommittedTransaction"/> <type name="CommittedTransaction"/> </relation>
-   <relation name="enext"> <type name="Event"/> <type name="Event"/> </relation>
-   <relation name="eo"> <type name="Event"/> <type name="Event"/> </relation>
-   <relation name="v"> <type name="ReadWriteEvent"/> <type name="Version"/> </relation>
-</edge>
-
-<edge visible="no" attribute="yes">
-   <relation name="tr"> <type name="Event"/> <type name="Transaction"/> </relation>
-   <relation name="tr"> <type name="Version"/> <type name="CommittedTransaction"/> </relation>
-   <relation name="wn"> <type name="Write"/> <type name="WriteNumber"/> </relation>
-</edge>
-
-<edge visible="yes">
-   <relation name="installs"> <type name="Write"/> <type name="Version"/> </relation>
-</edge>
-
-<edge visible="yes" label="gnext">
-   <relation name="$gnext"> <type name="Event"/> <type name="Event"/> </relation>
-</edge>
-
-<edge visible="yes" layout="yes">
-   <relation name="sees"> <type name="Read"/> <type name="Write"/> </relation>
 </edge>
 
 </view>
