@@ -14,14 +14,18 @@
    <type name="seq/Int"/>
    <type name="t/Event"/>
    <type name="t/FinalEvent"/>
-   <type name="t/Predicate"/>
    <type name="t/PredicateRead"/>
    <type name="vo/Ord"/>
    <type name="b/geo/Ord"/>
    <type name="t/wo/Ord"/>
+   <set name="this/InitialVersion" type="Version"/>
 </node>
 
-<node hideunconnected="yes" shape="Parallelogram" color="Blue">
+<node hideunconnected="no">
+   <type name="t/Predicate"/>
+</node>
+
+<node hideunconnected="no" shape="Parallelogram" color="Blue">
    <type name="Version"/>
 </node>
 
@@ -81,12 +85,16 @@
    <relation name="vn"> <type name="Version"/> <type name="VersionNumber"/> </relation>
 </edge>
 
-<edge label="gnext">
-   <relation name="$gnext"> <type name="t/Event"/> <type name="t/Event"/> </relation>
+<edge label="prw">
+   <relation name="$prw"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
 </edge>
 
-<edge label="installs">
-   <relation name="$installs"> <type name="t/Commit"/> <type name="Version"/> </relation>
+<edge label="pwr">
+   <relation name="$pwr"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
+</edge>
+
+<edge label="rw">
+   <relation name="$rw"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
 </edge>
 
 <edge label="wr">
@@ -97,21 +105,28 @@
    <relation name="$ww"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
 </edge>
 
+<edge layout="no" label="installs">
+   <relation name="$installs"> <type name="t/Commit"/> <type name="Version"/> </relation>
+</edge>
+
 <edge layout="yes">
    <relation name="sees"> <type name="t/Read"/> <type name="t/Write"/> </relation>
 </edge>
 
 <edge visible="no">
-   <relation name="$anomaly_serializable_strict_implies_PL3_e"> <type name="t/Transaction"/> <type name="t/Event"/> </relation>
-   <relation name="$anomaly_serializable_strict_implies_PL3_v2"> <type name="Version"/> <type name="Version"/> </relation>
-   <relation name="$anomaly_serializable_strict_implies_PL3_w"> <type name="Version"/> <type name="t/Write"/> </relation>
    <relation name="$iwr"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
+   <relation name="$PL2_99_implies_PL3_e"> <type name="t/Transaction"/> <type name="t/Event"/> </relation>
+   <relation name="$PL2_99_implies_PL3_v2"> <type name="Version"/> <type name="Version"/> </relation>
+   <relation name="$PL2_99_implies_PL3_w"> <type name="Version"/> <type name="t/Write"/> </relation>
    <relation name="eo"> <type name="t/Event"/> <type name="t/Event"/> </relation>
 </edge>
 
 <edge visible="no" attribute="yes">
+   <relation name="matches"> <type name="t/Predicate"/> <type name="Version"/> </relation>
    <relation name="obj"> <type name="Version"/> <type name="t/Object"/> </relation>
    <relation name="obj"> <type name="t/Write"/> <type name="t/Object"/> </relation>
+   <relation name="objs"> <type name="t/PredicateRead"/> <type name="t/Object"/> </relation>
+   <relation name="p"> <type name="t/PredicateRead"/> <type name="t/Predicate"/> </relation>
    <relation name="tr"> <type name="Version"/> <type name="t/Transaction"/> </relation>
    <relation name="tr"> <type name="t/Event"/> <type name="t/Transaction"/> </relation>
    <relation name="vset"> <type name="t/PredicateRead"/> <type name="Vset"/> </relation>
@@ -120,6 +135,10 @@
 
 <edge visible="no" label="DSG">
    <relation name="$DSG"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
+</edge>
+
+<edge visible="no" label="gnext">
+   <relation name="$gnext"> <type name="t/Event"/> <type name="t/Event"/> </relation>
 </edge>
 
 <edge visible="yes">

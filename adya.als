@@ -12,14 +12,17 @@ open transactions as t
 open bbg as b
 
 
+/*
 run {
     G2
     not G2item
     no AbortedTransaction
 } for 7 but exactly 3 Transaction, exactly 1 Predicate, exactly 2 Object
+*/
 
 // check PL3_implies_anomaly_serializable_broad for 5
 
+check PL2_99_implies_PL3 for 7 but exactly 2 Transaction
 
 assert anomaly_serializable_strict_implies_PL3 {
     always_read_most_recent_write => (b/AnomalySerializableStrict => PL3)
