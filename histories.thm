@@ -11,44 +11,119 @@
    <type name="Int"/>
    <type name="String"/>
    <type name="univ"/>
-   <type name="Vset"/>
-   <type name="VsetPredicate"/>
-   <type name="VsetPredicateRead"/>
    <type name="seq/Int"/>
-   <type name="t/Abort"/>
-   <type name="t/AbortedTransaction"/>
-   <type name="t/Commit"/>
    <type name="t/Event"/>
    <type name="t/FinalEvent"/>
-   <type name="t/Object"/>
    <type name="t/Predicate"/>
    <type name="t/PredicateRead"/>
-   <type name="t/Read"/>
-   <type name="t/Transaction"/>
-   <type name="t/Write"/>
-   <type name="t/WriteNumber"/>
    <type name="vo/Ord"/>
+   <type name="b/geo/Ord"/>
    <type name="t/wo/Ord"/>
 </node>
 
-<node label="T">
-   <type name="t/CommittedTransaction"/>
+<node hideunconnected="yes" shape="Parallelogram" color="Blue">
+   <type name="Version"/>
 </node>
 
-<node visible="no" hideunconnected="no">
-   <type name="Version"/>
+<node label="A">
+   <set name="t/AbortedTransaction" type="t/Transaction"/>
+</node>
+
+<node label="Abort">
+   <type name="t/Abort"/>
+</node>
+
+<node label="Commit">
+   <type name="t/Commit"/>
+</node>
+
+<node label="P">
+   <type name="VsetPredicate"/>
+</node>
+
+<node label="PRead">
+   <type name="VsetPredicateRead"/>
+</node>
+
+<node label="Read">
+   <type name="t/Read"/>
+</node>
+
+<node label="Write">
+   <type name="t/Write"/>
+</node>
+
+<node label="X">
+   <type name="t/Object"/>
+</node>
+
+<node label="n">
+   <type name="t/WriteNumber"/>
+</node>
+
+<node showlabel="no" label="C">
+   <set name="t/CommittedTransaction" type="t/Transaction"/>
+</node>
+
+<node visible="no">
+   <type name="Vset"/>
 </node>
 
 <node visible="no" label="v">
    <type name="VersionNumber"/>
 </node>
 
+<node visible="yes" hideunconnected="no" shape="Circle" color="Gray" label="T">
+   <type name="t/Transaction"/>
+</node>
+
 <edge attribute="yes">
    <relation name="vn"> <type name="Version"/> <type name="VersionNumber"/> </relation>
 </edge>
 
+<edge label="gnext">
+   <relation name="$gnext"> <type name="t/Event"/> <type name="t/Event"/> </relation>
+</edge>
+
+<edge label="installs">
+   <relation name="$installs"> <type name="t/Commit"/> <type name="Version"/> </relation>
+</edge>
+
+<edge label="wr">
+   <relation name="$wr"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
+</edge>
+
+<edge label="ww">
+   <relation name="$ww"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
+</edge>
+
+<edge layout="yes">
+   <relation name="sees"> <type name="t/Read"/> <type name="t/Write"/> </relation>
+</edge>
+
 <edge visible="no">
+   <relation name="$anomaly_serializable_strict_implies_PL3_e"> <type name="t/Transaction"/> <type name="t/Event"/> </relation>
+   <relation name="$anomaly_serializable_strict_implies_PL3_v2"> <type name="Version"/> <type name="Version"/> </relation>
+   <relation name="$anomaly_serializable_strict_implies_PL3_w"> <type name="Version"/> <type name="t/Write"/> </relation>
+   <relation name="$iwr"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
    <relation name="eo"> <type name="t/Event"/> <type name="t/Event"/> </relation>
+</edge>
+
+<edge visible="no" attribute="yes">
+   <relation name="obj"> <type name="Version"/> <type name="t/Object"/> </relation>
+   <relation name="obj"> <type name="t/Write"/> <type name="t/Object"/> </relation>
+   <relation name="tr"> <type name="Version"/> <type name="t/Transaction"/> </relation>
+   <relation name="tr"> <type name="t/Event"/> <type name="t/Transaction"/> </relation>
+   <relation name="vset"> <type name="t/PredicateRead"/> <type name="Vset"/> </relation>
+   <relation name="wn"> <type name="t/Write"/> <type name="t/WriteNumber"/> </relation>
+</edge>
+
+<edge visible="no" label="DSG">
+   <relation name="$DSG"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
+</edge>
+
+<edge visible="yes">
+   <relation name="tnext"> <type name="t/Event"/> <type name="t/Event"/> </relation>
 </edge>
 
 </view>
