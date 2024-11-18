@@ -73,6 +73,13 @@ fact "cannot see writes from the future" {
     ~sees in ^gnext
 }
 
+fact "can't read a write from a transaction that has already aborted" {
+    no wr : Write, rd : Read | {
+        rd.sees = wr
+        wr.tr in AbortedTransaction
+        (Abort & events[wr.tr])->rd in teo
+    }
+}
 
 /**
 * P1: w1[x]...r2[x]...((c1 or a1) and (c2 or a2) in any order)

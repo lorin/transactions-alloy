@@ -11,12 +11,42 @@ open util/ordering[VersionNumber] as vo
 open transactions as t
 open bbg as b
 
-// check {b/AnomalySerializableStrict => PL3} for 5
-check {b/AnomalySerializableBroad => PL3} for 5
+
+check anomaly_serializable_strict_implies_PL3 for 5
+
+assert anomaly_serializable_strict_implies_PL3 {
+    always_read_most_recent_write => (b/AnomalySerializableStrict => PL3)
+}
+
+
+assert PL3_implies_anomaly_serializable_broad {
+    always_read_most_recent_write => (PL3 => b/AnomalySerializableBroad)
+}
+
+assert PL2_99_implies_PL3 {
+    PL2_99 => PL3
+}
+
+// This isn't true in general but it's true for the locking model
+pred always_read_most_recent_write[] {
+    all rd: Read | no wr: Write | {
+        rd.obj = wr.obj
+        (rd.sees->wr + wr->rd) in b/teo - iden
+    }
+}
 
 fun gnext[] : Event -> Event {
     b/gnext
 }
+
+/*
+run {
+    no AbortedTransaction
+    G0
+    } for 6 but exactly 2 Transaction, exactly 2 Object, exactly 0 Predicate, exactly 4 Write, exactly 4 Version
+
+*/
+// check PL2_99_implies_PL3 for 9
 
 
 sig VersionNumber {}
@@ -58,6 +88,9 @@ fact "objects in predicate read are the objects that match in the version set"{
         pread.objs = (pread.vset.vs & pread.p.matches).obj
 }
 
+pred same_object[v1, v2 : Version] {
+    v1.obj = v2.obj
+}
 
 
 // vsets
@@ -69,7 +102,7 @@ fact "Vsets are complete" {
 
 fact "only one version per object in a vset" {
     all vset : Vset | no disj v1, v2 : vset.vs |
-        v1.obj = v2.obj
+        same_object[v1, v2]
 }
 
 fact "Vsets are unique" {
@@ -77,12 +110,10 @@ fact "Vsets are unique" {
 }
 
 
-// Installed version
-
-
+// Installed versions
 
 fact "every installed version must have an associated write" {
-    all v : Version | some w : Write & v.tr.events | w.obj = v.obj
+    all v : Version | some w : Write & v.tr.events |  w.obj = v.obj
 }
 
 fact "at most one version per (object, transaction) pair" {
@@ -98,14 +129,53 @@ fact "every object written in a committed transaction must have an associated in
         }
 }
 
+fact "one version is the first one" {
+    all v1 : Version |
+        some v2 : Version | {
+            v1.obj = v2.obj
+            v2.vn = vo/first
+        }
+}
+
+fact "all versions except the first have a predecessor" {
+    all v1 : Version |
+        (no v1.vn & vo/first) => some v2 : Version | {
+            same_object[v1, v2]
+            v1.vn.prev = v2.vn
+        }
+}
+
+fact "version numbers are unique" {
+    all disj v1, v2 : Version | {
+        same_object[v1, v2] => no (v1.vn & v2.vn)
+    }
+}
+
+fun first_event[T : Transaction] : Event {
+    {e : events[T] | no tnext.e}
+}
+
+fun last_event[T : Transaction] : Event {
+    {e : events[T] | no tnext[e]}
+}
+
+pred happens_before[T1, T2 : Transaction] {
+    lt[last_event[T1],first_event[T2]]
+}
+
+fact "version numbers are consistent with transaction ordering" {
+    all disj v1, v2 : Version |
+        (same_object[v1,v2] and happens_before[v1.tr, v2.tr]) => lt[v1.vn, v2.vn]
+}
+
 
 // Directly write-depends
 fun ww[] : CommittedTransaction -> CommittedTransaction {
     { disj Ti, Tj : CommittedTransaction | some v1 : Ti.installs, v2 : Tj.installs | {
-        v1.obj = v2.obj
+        same_object[v1, v2]
         v1.tr = Ti
         v2.tr = Tj
-        v1.next = v2
+        next_version[v1] = v2
         }
     }
 }
@@ -151,7 +221,7 @@ fun iwr[] : CommittedTransaction -> CommittedTransaction {
     { disj Ti, Tj : CommittedTransaction |
         some rj : events[Tj] & PredicateRead, xk : rj.vset.vs, xi : installs[Ti] |
             {
-                xi.obj = xk.obj
+                same_object[xi, xk]
                 lte[xi.vn, xk.vn] // xi's version is less than or equal to xk's version
                 changes_the_matches_of[xi, rj]
             }
@@ -184,7 +254,7 @@ fun rw[]: CommittedTransaction -> CommittedTransaction {
 
 fun next_version[v : Version] : lone Version {
     {w : Version | {
-        w.obj = v.obj
+        same_object[w, v]
         w.vn = vo/next[v.vn]
     }}
 }
@@ -207,7 +277,7 @@ fun irw[]: CommittedTransaction -> CommittedTransaction {
 
 // true if v1 is a later version than v2
 pred later_version[v1, v2 : Version] {
-    v1.obj = v2.obj
+    same_object[v1, v2]
     gt[v1.vn, v2.vn]
 }
 

@@ -63,8 +63,9 @@ fun events[t : Transaction] : set Event {
 // transactions
 
 
-fact {
+fact "AbortedTransaction and CompletedTransaction are complete" {
     no AbortedTransaction & CommittedTransaction
+    Transaction in AbortedTransaction + CommittedTransaction
 }
 
 
@@ -109,6 +110,9 @@ fact "all events within a transaction are totally ordered" {
         some e : events[T] | pred/totalOrder[events[T], e, tnext] // tnext generates a total ordering
     }
 }
+
+
+// write number
 
 fact "write number is consistent with execution order" {
     all T : Transaction, disj w1, w2 : events[T] & Write |
