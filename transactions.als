@@ -36,6 +36,8 @@ sig Read extends Event {
     sees: Write // operation that did the write
 }
 
+sig WriteNumber {}
+
 abstract sig Predicate {}
 
 abstract sig PredicateRead extends Event {
@@ -43,7 +45,6 @@ abstract sig PredicateRead extends Event {
     objs : set Object
 }
 
-sig WriteNumber {}
 
 
 fun obj[] : Read -> Object {

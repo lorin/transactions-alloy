@@ -13,8 +13,9 @@ open bbg as b
 
 
 // run {} for 5 but exactly 1 Transaction
-check PL2_99_implies_PL3
-for 8 but exactly 3 Transaction, exactly 2 Object, exactly 1 PredicateRead, exactly 1 Predicate, exactly 0 AbortedTransaction
+check anomaly_serializable_strict_implies_PL3
+for 8 but exactly 3 Transaction, exactly 2 Object, exactly 1 PredicateRead, exactly 1 Predicate
+// for 8 but exactly 3 Transaction, exactly 2 Object, exactly 1 PredicateRead, exactly 1 Predicate, exactly 0 AbortedTransaction
 
 
 /*
