@@ -13,10 +13,18 @@ open bbg as b
 
 
 // run {} for 5 but exactly 1 Transaction
+check PL2_99_implies_PL3
+for 8 but exactly 3 Transaction, exactly 2 Object, exactly 1 PredicateRead, exactly 1 Predicate, exactly 0 AbortedTransaction
 
+
+/*
 run {
-    some irw
+    G2
+    //some irw
+    // some PredicateRead.objs
+    // some prw
 } for 8 but exactly 3 Transaction, exactly 2 Object, exactly 1 PredicateRead, exactly 1 Predicate, exactly 0 AbortedTransaction
+*/
 
 /*
 run {
@@ -43,10 +51,11 @@ assert PL2_99_implies_PL3 {
     PL2_99 => PL3
 }
 
+
 // This isn't true in general but it's true for the locking model
 pred always_read_most_recent_write[] {
     all rd: Read | no wr: Write | {
-        rd.obj = wr.obj
+        rd.t/obj = wr.obj
         (rd.sees->wr + wr->rd) in b/teo - iden
     }
 }
@@ -55,8 +64,9 @@ fun gnext[] : Event -> Event {
     b/gnext
 }
 
-
-one sig InitialTransaction extends CommittedTransaction {}
+fun obj[] : Read -> Object {
+    t/obj
+}
 
 
 sig VersionNumber {}
@@ -68,12 +78,28 @@ sig Version {
     vn: VersionNumber
 }
 
-sig InitialVersion in Version {}
-
-// set of versions seen by a predicate read
 sig VsetPredicate extends Predicate {
     matches : set Version
 }
+
+
+one sig InitialTransaction extends CommittedTransaction {}
+
+
+sig InitialVersion in Version {}
+
+sig InitialWrite in Write {} {
+    tr = InitialTransaction
+}
+
+one sig InitialCommit in Commit {} {
+    tr = InitialTransaction
+}
+
+fact {
+    events[InitialTransaction] in InitialWrite + InitialCommit
+}
+
 
 sig VsetPredicateRead extends PredicateRead {
     vset : set Version
@@ -230,7 +256,7 @@ pred is_last_write[w : Write] {
 pred reads[T : Transaction, v: Version] {
     some rd : T.events & Read | let wr=rd.sees |
     {
-        rd.obj = v.obj
+        rd.t/obj = v.obj
         wr.tr = v.tr
         is_last_write[wr]
     }
@@ -385,7 +411,7 @@ pred G1a {
  * final modification of x.
 */
 pred G1b {
-    some T1 : Transaction, T2 : CommittedTransaction, r : events[T2] & Read | let x = r.obj, wi=r.sees |
+    some T1 : Transaction, T2 : CommittedTransaction, r : events[T2] & Read | let x = r.t/obj, wi=r.sees |
     {
         no T1 & T2 // different transactions
         wi.tr = T1
