@@ -31,4 +31,26 @@ sig Read extends Event {
 
 sig WriteNumber {}
 
-run {}
+
+// helper function that returns set of events associated with a transaction
+fun events[t : Transaction] : set Event {
+    tr.t
+}
+
+fact "all transactions contain exactly one final event" {
+    all t : Transaction | one events[t] & FinalEvent
+}
+
+fact "nothing comes after a final event" {
+    no FinalEvent.tnext
+}
+
+fact "committed transactions contain a commit" {
+    all t : CommittedTransaction | some Commit & events[t]
+}
+
+fact "aborted transactions contain an abort" {
+    all t : AbortedTransaction | some Abort & events[t]
+}
+
+check {no iden & ^tnext}

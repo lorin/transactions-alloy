@@ -15,7 +15,7 @@ open util/ordering[Event] as geo
 let gnext = geo/next
 let teo = *gnext
 
-// check { AnsiReadCommittedStrict } for 4
+check { AnsiReadCommittedStrict } for 4
 
 /**
  * Table 1

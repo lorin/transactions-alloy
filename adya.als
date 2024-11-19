@@ -53,20 +53,21 @@ assert PL2_99_implies_PL3 {
 }
 
 
+
+fun obj[] : Read -> Object {
+    {r : Read, o : Object | o = r.sees.obj}
+}
+
 // This isn't true in general but it's true for the locking model
 pred always_read_most_recent_write[] {
     all rd: Read | no wr: Write | {
-        rd.t/obj = wr.obj
+        rd.obj = wr.obj
         (rd.sees->wr + wr->rd) in b/teo - iden
     }
 }
 
 fun gnext[] : Event -> Event {
     b/gnext
-}
-
-fun obj[] : Read -> Object {
-    t/obj
 }
 
 
@@ -82,6 +83,10 @@ sig Version {
 sig VsetPredicate extends Predicate {
     matches : set Version
 }
+
+/**
+ * We define an initial transaction that writes initial versions for all objects
+ */
 
 
 one sig InitialTransaction extends CommittedTransaction {}
@@ -234,7 +239,7 @@ fact "version numbers are consistent with transaction ordering" {
 
 // Directly write-depends
 fun ww[] : CommittedTransaction -> CommittedTransaction {
-    { disj Ti, Tj : CommittedTransaction | some v1 : Ti.installs, v2 : Tj.installs | {
+    { disj Ti, Tj : CommittedTransaction | some v1 : installs[Ti], v2 : installs[Tj] | {
         same_object[v1, v2]
         v1.tr = Ti
         v2.tr = Tj
@@ -257,7 +262,7 @@ pred is_last_write[w : Write] {
 pred reads[T : Transaction, v: Version] {
     some rd : T.events & Read | let wr=rd.sees |
     {
-        rd.t/obj = v.obj
+        rd.obj = v.obj
         wr.tr = v.tr
         is_last_write[wr]
     }
@@ -298,18 +303,18 @@ fun iwr[] : CommittedTransaction -> CommittedTransaction {
     }}
  }
 
-/*
-Definition 2 : Change the Matches of a Predicate-Based
-Read.
-
-We say that a transaction Ti changes the matches of a predicate-based read rj
-(P: Vset(P)) if
- - Ti installs xi,
- - xh immediately precedes xi in the version order,and
- - xh matches P whereas xi does not or vice-versa.
-
- In this case, we also say that xi changes the matches of the predicate-based read.
-*/
+/**
+ * Definition 2 : Change the Matches of a Predicate-Based
+ * Read.
+ *
+ * We say that a transaction Ti changes the matches of a predicate-based read rj
+ * (P: Vset(P)) if
+ *  - Ti installs xi,
+ *  - xh immediately precedes xi in the version order,and
+ *  - xh matches P whereas xi does not or vice-versa.
+ *
+ *  In this case, we also say that xi changes the matches of the predicate-based read.
+ */
 pred changes_the_matches_of[xi : Version, rj: PredicateRead] {
     some xh : Version {
         xh = prev[xi]
@@ -330,11 +335,13 @@ fun next_version[v : Version] : lone Version {
 }
 
 
-// Directly item-anti-depends: We say that Tj directly item-anti-depends on
-// transaction Ti if Ti reads some object version xk and Tj installs x’s next
-// version (after xk ) in the version order. Note that the transaction that wrote
-// the later version directly item-anti-depends on the transaction that read the
-// earlier version
+/**
+ * Directly item-anti-depends: We say that Tj directly item-anti-depends on
+ * transaction Ti if Ti reads some object version xk and Tj installs x’s next
+ * version (after xk ) in the version order. Note that the transaction that wrote
+ * the later version directly item-anti-depends on the transaction that read the
+ * earlier version
+ */
 fun irw[]: CommittedTransaction -> CommittedTransaction {
     {disj Ti, Tj : CommittedTransaction |
         some xk, xl : Version  |  {
@@ -351,16 +358,15 @@ pred later_version[v1, v2 : Version] {
     gt[v1.vn, v2.vn]
 }
 
-/*
-
-Directly predicate-anti-depends:
-
-We say that Tj directly predicate-anti-depends on Ti if Tj overwrites an
-operation ri (P: Vset(P)), i.e.,
-
-Tj installs a later version of some object that changes the matches of a predicate-based read performed by Ti
-
-*/
+/**
+ * Directly predicate-anti-depends:
+ *
+ * We say that Tj directly predicate-anti-depends on Ti if Tj overwrites an
+ * operation ri (P: Vset(P)), i.e.,
+ *
+ * Tj installs a later version of some object that changes the matches of a predicate-based read performed by Ti
+ *
+ */
 fun prw[]: CommittedTransaction -> CommittedTransaction {
     {disj Ti, Tj : CommittedTransaction |
         some ri : Ti.events & PredicateRead, xk : ri.vset, xj : Tj.installs |
@@ -410,9 +416,9 @@ pred G1a {
  * A history H shows phenomenon G1b if it contains a committed transaction
  * T2 that has read a version of object x written by transaction T1 that was not T1’s
  * final modification of x.
-*/
+ */
 pred G1b {
-    some T1 : Transaction, T2 : CommittedTransaction, r : events[T2] & Read | let x = r.t/obj, wi=r.sees |
+    some T1 : Transaction, T2 : CommittedTransaction, r : events[T2] & Read | let x = r.obj, wi=r.sees |
     {
         no T1 & T2 // different transactions
         wi.tr = T1
@@ -431,7 +437,7 @@ pred G1b {
  * consisting entirely of dependency edges
  */
 pred G1c {
-    not acyclic[ww + wr, CommittedTransaction]
+    some iden & ^(ww + wr)
 }
 
 fun DSG[] : CommittedTransaction -> CommittedTransaction {
@@ -444,7 +450,7 @@ fun DSG[] : CommittedTransaction -> CommittedTransaction {
  * G2: Anti-dependency Cycles. A history H exhibits
  * phenomenon G2 if DSG(H) contains a directed cycle
  * with one or more anti-dependency edges.
-*/
+* */
 pred G2 {
     // must contain a cycle
     some iden & ^DSG
@@ -454,10 +460,10 @@ pred G2 {
 }
 
 
-/*
-G2-item: Item Anti-dependency Cycles. A history H exhibits phenomenon G2-item if
-DSG(H) contains a directed cycle having one or more item-antidependency edges.
-*/
+/**
+ * G2-item: Item Anti-dependency Cycles. A history H exhibits phenomenon G2-item if
+ * DSG(H) contains a directed cycle having one or more item-antidependency edges.
+ */
 pred G2item {
     // must contain a cycle
     some iden & ^DSG
