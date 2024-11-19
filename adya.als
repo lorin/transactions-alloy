@@ -12,7 +12,7 @@ open transactions as t
 open bbg as b
 
 
-check anomaly_serializable_strict_implies_PL3
+check PL3_implies_anomaly_serializable_broad
 for 8 but exactly 3 Transaction, exactly 2 Object, exactly 1 PredicateRead, exactly 1 Predicate
 
 
@@ -82,6 +82,12 @@ fact {
     events[InitialTransaction] in InitialWrite + InitialCommit
 }
 
+fact "initial transaction events all happen before all other events" {
+    all e1 : InitialWrite+InitialCommit, e2 : Event - (InitialWrite + InitialCommit) | {
+        e1->e2 in ^gnext
+    }
+}
+
 
 sig VsetPredicateRead extends PredicateRead {
     vset : set Version
@@ -125,7 +131,7 @@ fact "initial versions have the initial version number" {
 
 // predicate reads
 
-fact "objects in predicate read are the objects that match in the version set"{
+fact "objects in predicate read are the objects that match in the version set" {
     all pread : VsetPredicateRead |
         pread.objs = (pread.vset & pread.p.matches).obj
 }
