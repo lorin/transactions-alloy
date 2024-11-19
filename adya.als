@@ -12,32 +12,9 @@ open transactions as t
 open bbg as b
 
 
-// run {} for 5 but exactly 1 Transaction
 check anomaly_serializable_strict_implies_PL3
 for 8 but exactly 3 Transaction, exactly 2 Object, exactly 1 PredicateRead, exactly 1 Predicate
-// for 8 but exactly 3 Transaction, exactly 2 Object, exactly 1 PredicateRead, exactly 1 Predicate, exactly 0 AbortedTransaction
 
-
-/*
-run {
-    G2
-    //some irw
-    // some PredicateRead.objs
-    // some prw
-} for 8 but exactly 3 Transaction, exactly 2 Object, exactly 1 PredicateRead, exactly 1 Predicate, exactly 0 AbortedTransaction
-*/
-
-/*
-run {
-    G2
-    // not G2item
-    // no AbortedTransaction
-} for 7 but exactly 3 Transaction, exactly 1 Predicate, exactly 2 Object
-*/
-
-// check PL3_implies_anomaly_serializable_broad for 5
-
-// check PL2_99_implies_PL3 for 7 but exactly 2 Transaction
 
 assert anomaly_serializable_strict_implies_PL3 {
     always_read_most_recent_write => (b/AnomalySerializableStrict => PL3)
