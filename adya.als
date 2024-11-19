@@ -30,7 +30,6 @@ assert PL2_99_implies_PL3 {
 }
 
 
-
 fun obj[] : Read -> Object {
     {r : Read, o : Object | o = r.sees.obj}
 }
@@ -87,11 +86,6 @@ fact {
 sig VsetPredicateRead extends PredicateRead {
     vset : set Version
 }
-
-fun vs[pread : VsetPredicateRead] : set Version {
-    pread.vset & pread.p.matches
-}
-
 
 fun installs[T : Transaction] : set Version {
     Version <: tr.T
