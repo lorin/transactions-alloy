@@ -76,10 +76,6 @@
    <type name="t/WriteNumber"/>
 </node>
 
-<node visible="no">
-   <type name="Vset"/>
-</node>
-
 <node visible="no" label="v">
    <type name="VersionNumber"/>
 </node>
@@ -92,6 +88,18 @@
    <relation name="vn"> <type name="Version"/> <type name="VersionNumber"/> </relation>
 </edge>
 
+<edge label="irw">
+   <relation name="$irw"> <type name="t/CommittedTransaction"/> <type name="t/CommittedTransaction"/> </relation>
+</edge>
+
+<edge label="iwr">
+   <relation name="$iwr"> <type name="t/CommittedTransaction"/> <type name="t/CommittedTransaction"/> </relation>
+</edge>
+
+<edge label="ww">
+   <relation name="$ww"> <type name="t/CommittedTransaction"/> <type name="t/CommittedTransaction"/> </relation>
+</edge>
+
 <edge layout="no" label="installs">
    <relation name="$installs"> <type name="t/Commit"/> <type name="Version"/> </relation>
 </edge>
@@ -101,13 +109,13 @@
 </edge>
 
 <edge visible="no">
+   <relation name="$DSG"> <type name="t/CommittedTransaction"/> <type name="t/CommittedTransaction"/> </relation>
    <relation name="$e"> <type name="t/Transaction"/> <type name="t/Event"/> </relation>
+   <relation name="$rw"> <type name="t/CommittedTransaction"/> <type name="t/CommittedTransaction"/> </relation>
    <relation name="$v2"> <type name="Version"/> <type name="Version"/> </relation>
+   <relation name="$wr"> <type name="t/CommittedTransaction"/> <type name="t/CommittedTransaction"/> </relation>
    <relation name="eo"> <type name="t/Event"/> <type name="t/Event"/> </relation>
-</edge>
-
-<edge visible="no" attribute="no">
-   <relation name="vset"> <type name="t/PredicateRead"/> <type name="Vset"/> </relation>
+   <relation name="tr"> <type name="Version"/> <type name="t/CommittedTransaction"/> </relation>
 </edge>
 
 <edge visible="no" attribute="yes">
@@ -118,12 +126,8 @@
    <relation name="objs"> <type name="t/PredicateRead"/> <type name="t/Object"/> </relation>
    <relation name="p"> <type name="t/PredicateRead"/> <type name="t/Predicate"/> </relation>
    <relation name="tr"> <type name="t/Event"/> <type name="t/Transaction"/> </relation>
-   <relation name="vs"> <type name="Vset"/> <type name="Version"/> </relation>
+   <relation name="vset"> <type name="t/PredicateRead"/> <type name="Version"/> </relation>
    <relation name="wn"> <type name="t/Write"/> <type name="t/WriteNumber"/> </relation>
-</edge>
-
-<edge visible="no" attribute="yes" label="vset">
-   <relation name="$vs"> <type name="t/PredicateRead"/> <type name="Version"/> </relation>
 </edge>
 
 <edge visible="no" label="gnext">

@@ -12,14 +12,18 @@ open transactions as t
 open bbg as b
 
 
-run {} for 5 but exactly 1 Transaction
+// run {} for 5 but exactly 1 Transaction
+
+run {
+    some irw
+} for 7 but exactly 3 Transaction, exactly 2 Object, exactly 0 AbortedTransaction
 
 /*
 run {
-    //G2
+    G2
     // not G2item
     // no AbortedTransaction
-} for 8 but exactly 3 Transaction, exactly 1 Predicate, exactly 2 Object
+} for 7 but exactly 3 Transaction, exactly 1 Predicate, exactly 2 Object
 */
 
 // check PL3_implies_anomaly_serializable_broad for 5
@@ -67,20 +71,16 @@ sig Version {
 sig InitialVersion in Version {}
 
 // set of versions seen by a predicate read
-sig Vset {
-    vs : set Version
-}
-
 sig VsetPredicate extends Predicate {
     matches : set Version
 }
 
 sig VsetPredicateRead extends PredicateRead {
-    vset : Vset
+    vset : set Version
 }
 
 fun vs[pread : VsetPredicateRead] : set Version {
-    pread.vset.vs & pread.p.matches
+    pread.vset & pread.p.matches
 }
 
 
@@ -90,10 +90,6 @@ fun installs[T : Transaction] : set Version {
 
 fun installs[] : Commit -> set Version {
     {c : Commit, v : Version | v.tr=c.tr}
-}
-
-fun vs[] : VsetPredicateRead -> set Version {
-    {pread : VsetPredicateRead, v : Version | v in pread.vset.vs}
 }
 
 //
@@ -128,7 +124,7 @@ fact "initial versions have the initial version number" {
 
 fact "objects in predicate read are the objects that match in the version set"{
     all pread : VsetPredicateRead |
-        pread.objs = (pread.vset.vs & pread.p.matches).obj
+        pread.objs = (pread.vset & pread.p.matches).obj
 }
 
 pred same_object[v1, v2 : Version] {
@@ -139,17 +135,13 @@ pred same_object[v1, v2 : Version] {
 // vsets
 
 fact "Vsets are complete" {
-    all vset : Vset |
-        Object in vset.vs.obj
+    all p : VsetPredicateRead |
+        Object in p.vset.obj
 }
 
 fact "only one version per object in a vset" {
-    all vset : Vset | no disj v1, v2 : vset.vs |
+    all p : VsetPredicateRead | no disj v1, v2 : p.vset |
         same_object[v1, v2]
-}
-
-fact "Vsets are unique" {
-    no disj vset1, vset2 : Vset | vset1.vs = vset2.vs
 }
 
 
@@ -263,7 +255,7 @@ fun iwr[] : CommittedTransaction -> CommittedTransaction {
  */
  fun pwr[] : CommittedTransaction -> CommittedTransaction {
     { disj Ti, Tj : CommittedTransaction |
-        some rj : events[Tj] & PredicateRead, xk : rj.vset.vs, xi : installs[Ti] |
+        some rj : events[Tj] & PredicateRead, xk : rj.vset, xi : installs[Ti] |
             {
                 same_object[xi, xk]
                 lte[xi.vn, xk.vn] // xi's version is less than or equal to xk's version
@@ -344,7 +336,7 @@ Tj installs a later version of some object that changes the matches of a predica
 */
 fun prw[]: CommittedTransaction -> CommittedTransaction {
     {disj Ti, Tj : CommittedTransaction |
-        some ri : Ti.events & PredicateRead, xk : ri.vset.vs, xj : Tj.installs |
+        some ri : Ti.events & PredicateRead, xk : ri.vset, xj : Tj.installs |
             later_version[xj, xk] and changes_the_matches_of[xj, ri]
     }
 }
