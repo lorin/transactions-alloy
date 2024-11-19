@@ -16,7 +16,7 @@ open bbg as b
 
 run {
     some irw
-} for 7 but exactly 3 Transaction, exactly 2 Object, exactly 0 AbortedTransaction
+} for 8 but exactly 3 Transaction, exactly 2 Object, exactly 1 PredicateRead, exactly 1 Predicate, exactly 0 AbortedTransaction
 
 /*
 run {
