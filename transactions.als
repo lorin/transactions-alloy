@@ -105,21 +105,37 @@ fact "all events within a transaction are totally ordered" {
 }
 
 
+//
 // write number
+//
+
+pred same_object[w1, w2 : Write] {
+    w1.obj = w2.obj
+}
 
 fact "write number is consistent with execution order" {
     all T : Transaction, disj w1, w2 : events[T] & Write |
-        lt[w1.wn, w2.wn] <=> w1 -> w2 in eo
+        (same_object[w1, w2] and lt[w1.wn, w2.wn]) => w1 -> w2 in eo
 }
 
-fact "first write is first write number" {
-    all T : Transaction, w : events[T] & Write |
-        no w.^~tnext => w.wn = first
+
+fun writes[o : Object] : set Write {
+    {w : Write | w.obj = o}
+}
+
+// True if w is the first of its object in the transaction
+pred first_write[w : Write] {
+    no w.^~tnext & writes[w.obj]
+}
+
+fact "first write of an object is first write number" {
+    all w : Write |
+        first_write[w] => w.wn = wo/first
 }
 
 fact "write number goes up one at a time" {
     all T : Transaction, disj w1, w2 : events[T] & Write | ({
-        w1.obj = w2.obj
+        same_object[w1, w2]
         w1 -> w2 in eo
         no w3 : events[T] & Write - (w1+w2) | w3.obj=w1.obj and (w1->w3 + w3->w2) in eo
     } => w1.wn.next = w2.wn)

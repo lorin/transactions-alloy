@@ -18,19 +18,18 @@
    <type name="vo/Ord"/>
    <type name="b/geo/Ord"/>
    <type name="t/wo/Ord"/>
-   <set name="this/InitialVersion" type="Version"/>
 </node>
 
 <node hideunconnected="no">
    <type name="t/Predicate"/>
 </node>
 
-<node hideunconnected="no" shape="Parallelogram" color="Blue">
+<node hideunconnected="no" shape="Parallelogram" color="Blue" label="V">
    <type name="Version"/>
 </node>
 
 <node label="A">
-   <set name="t/AbortedTransaction" type="t/Transaction"/>
+   <type name="t/AbortedTransaction"/>
 </node>
 
 <node label="Abort">
@@ -53,6 +52,18 @@
    <type name="t/Read"/>
 </node>
 
+<node label="T">
+   <type name="t/CommittedTransaction"/>
+</node>
+
+<node label="Tinit">
+   <type name="InitialTransaction"/>
+</node>
+
+<node label="Vinit">
+   <set name="this/InitialVersion" type="Version"/>
+</node>
+
 <node label="Write">
    <type name="t/Write"/>
 </node>
@@ -63,10 +74,6 @@
 
 <node label="n">
    <type name="t/WriteNumber"/>
-</node>
-
-<node showlabel="no" label="C">
-   <set name="t/CommittedTransaction" type="t/Transaction"/>
 </node>
 
 <node visible="no">
@@ -85,26 +92,6 @@
    <relation name="vn"> <type name="Version"/> <type name="VersionNumber"/> </relation>
 </edge>
 
-<edge label="prw">
-   <relation name="$prw"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
-</edge>
-
-<edge label="pwr">
-   <relation name="$pwr"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
-</edge>
-
-<edge label="rw">
-   <relation name="$rw"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
-</edge>
-
-<edge label="wr">
-   <relation name="$wr"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
-</edge>
-
-<edge label="ww">
-   <relation name="$ww"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
-</edge>
-
 <edge layout="no" label="installs">
    <relation name="$installs"> <type name="t/Commit"/> <type name="Version"/> </relation>
 </edge>
@@ -114,27 +101,29 @@
 </edge>
 
 <edge visible="no">
-   <relation name="$iwr"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
-   <relation name="$PL2_99_implies_PL3_e"> <type name="t/Transaction"/> <type name="t/Event"/> </relation>
-   <relation name="$PL2_99_implies_PL3_v2"> <type name="Version"/> <type name="Version"/> </relation>
-   <relation name="$PL2_99_implies_PL3_w"> <type name="Version"/> <type name="t/Write"/> </relation>
+   <relation name="$e"> <type name="t/Transaction"/> <type name="t/Event"/> </relation>
+   <relation name="$v2"> <type name="Version"/> <type name="Version"/> </relation>
    <relation name="eo"> <type name="t/Event"/> <type name="t/Event"/> </relation>
 </edge>
 
+<edge visible="no" attribute="no">
+   <relation name="vset"> <type name="t/PredicateRead"/> <type name="Vset"/> </relation>
+</edge>
+
 <edge visible="no" attribute="yes">
+   <relation name="$w"> <type name="Version"/> <type name="t/Write"/> </relation>
    <relation name="matches"> <type name="t/Predicate"/> <type name="Version"/> </relation>
    <relation name="obj"> <type name="Version"/> <type name="t/Object"/> </relation>
    <relation name="obj"> <type name="t/Write"/> <type name="t/Object"/> </relation>
    <relation name="objs"> <type name="t/PredicateRead"/> <type name="t/Object"/> </relation>
    <relation name="p"> <type name="t/PredicateRead"/> <type name="t/Predicate"/> </relation>
-   <relation name="tr"> <type name="Version"/> <type name="t/Transaction"/> </relation>
    <relation name="tr"> <type name="t/Event"/> <type name="t/Transaction"/> </relation>
-   <relation name="vset"> <type name="t/PredicateRead"/> <type name="Vset"/> </relation>
+   <relation name="vs"> <type name="Vset"/> <type name="Version"/> </relation>
    <relation name="wn"> <type name="t/Write"/> <type name="t/WriteNumber"/> </relation>
 </edge>
 
-<edge visible="no" label="DSG">
-   <relation name="$DSG"> <type name="t/Transaction"/> <type name="t/Transaction"/> </relation>
+<edge visible="no" attribute="yes" label="vset">
+   <relation name="$vs"> <type name="t/PredicateRead"/> <type name="Version"/> </relation>
 </edge>
 
 <edge visible="no" label="gnext">

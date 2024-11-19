@@ -12,17 +12,19 @@ open transactions as t
 open bbg as b
 
 
+run {} for 5 but exactly 1 Transaction
+
 /*
 run {
-    G2
-    not G2item
-    no AbortedTransaction
-} for 7 but exactly 3 Transaction, exactly 1 Predicate, exactly 2 Object
+    //G2
+    // not G2item
+    // no AbortedTransaction
+} for 8 but exactly 3 Transaction, exactly 1 Predicate, exactly 2 Object
 */
 
 // check PL3_implies_anomaly_serializable_broad for 5
 
-check PL2_99_implies_PL3 for 7 but exactly 2 Transaction
+// check PL2_99_implies_PL3 for 7 but exactly 2 Transaction
 
 assert anomaly_serializable_strict_implies_PL3 {
     always_read_most_recent_write => (b/AnomalySerializableStrict => PL3)
@@ -50,13 +52,15 @@ fun gnext[] : Event -> Event {
 }
 
 
+one sig InitialTransaction extends CommittedTransaction {}
+
 
 sig VersionNumber {}
 
 // installed (committed) versions
 sig Version {
     obj: Object,
-    tr: lone CommittedTransaction,
+    tr: one CommittedTransaction,
     vn: VersionNumber
 }
 
@@ -92,9 +96,23 @@ fun vs[] : VsetPredicateRead -> set Version {
     {pread : VsetPredicateRead, v : Version | v in pread.vset.vs}
 }
 
-// initial versions
-fact "initial versions and only initial versions don't have associated transactions" {
-    all v : Version | no v.tr <=> v in InitialVersion
+//
+// initial transaction
+//
+fact "initial transaction has one write per object" {
+    all o : Object | one events[InitialTransaction] & writes[o]
+}
+
+fact "initial transaction has only writes" {
+    no events[InitialTransaction] & (Event-Write-Commit)
+}
+
+
+// initial version
+
+
+fact "initial versions are associated with the initial transaction" {
+    all v : Version | v in InitialVersion <=> v.tr = InitialTransaction
 }
 
 fact "there is exactly one initial version for each object" {
