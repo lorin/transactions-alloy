@@ -11,7 +11,7 @@ sig Object {}
 
 abstract sig Transaction {}
 
-sig AbortedTransaction, CommittedTransaction in Transaction {}
+sig AbortedTransaction, CommittedTransaction extends Transaction {}
 
 
 abstract sig Event {
@@ -46,7 +46,6 @@ abstract sig PredicateRead extends Event {
 sig WriteNumber {}
 
 
-
 fun obj[] : Read -> Object {
     {r : Read, o : Object | o = r.sees.obj}
 }
@@ -61,12 +60,6 @@ fun events[t : Transaction] : set Event {
 //
 
 // transactions
-
-
-fact "AbortedTransaction and CompletedTransaction are complete" {
-    no AbortedTransaction & CommittedTransaction
-    Transaction in AbortedTransaction + CommittedTransaction
-}
 
 
 fact "all transactions contain exactly one final event" {
