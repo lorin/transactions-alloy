@@ -60,10 +60,6 @@ pred adjacent[n1 : univ, n2 : univ, r: univ->univ, s : set univ] {
     }
 }
 
-fun gnext[] : Event -> Event  {
-    {disj e1, e2 : Event | e1->e2 in teo }
-}
-
 fact "gnext is consistent with eo" {
     eo in teo
 }
